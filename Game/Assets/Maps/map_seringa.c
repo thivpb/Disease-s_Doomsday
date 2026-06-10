@@ -9,86 +9,133 @@
 // ============================================================================
 // DrawMapSeringa — Renderiza o interior da seringa (chamar dentro BeginMode2D)
 // ============================================================================
-void DrawMapSeringa(Font font, int tutorialStep, float time)
+void DrawMapSeringa(Font font, int tutorialStep, float time, float injectionTimer)
 {
     // -------------------------------------------------------------------------
     // LÍQUIDO DA VACINA (fundo translúcido azul médico)
     // -------------------------------------------------------------------------
+    // Fundo azul médico mais intenso
     DrawRectangle(
-        (int)SYR_WALL_LEFT, (int)SYR_TOP,
-        (int)(SYR_WALL_RIGHT - SYR_WALL_LEFT),
-        (int)(SYR_BOTTOM - SYR_TOP),
-        Fade((Color){ 140, 200, 240, 255 }, 0.35f)
+        (int)SYR_LEFT, (int)SYR_WALL_TOP,
+        (int)(SYR_RIGHT - SYR_LEFT),
+        (int)(SYR_WALL_BOTTOM - SYR_WALL_TOP),
+        (Color){ 10, 80, 140, 255 }
+    );
+    // Gradiente / Sobreposição para dar profundidade de líquido
+    DrawRectangleGradientV(
+        (int)SYR_LEFT, (int)SYR_WALL_TOP,
+        (int)(SYR_RIGHT - SYR_LEFT),
+        (int)(SYR_WALL_BOTTOM - SYR_WALL_TOP),
+        Fade((Color){ 0, 180, 220, 255 }, 0.4f),
+        Fade((Color){ 0, 50, 100, 255 }, 0.8f)
     );
 
-    // Grade de referência interior (linhas finas translúcidas)
-    for (int x = (int)SYR_WALL_LEFT + 80; x < (int)SYR_WALL_RIGHT; x += 80)
-        DrawLine(x, (int)SYR_TOP, x, (int)SYR_TAPER_Y, Fade((Color){ 180, 210, 230, 255 }, 0.22f));
-    for (int y = (int)SYR_TOP + 80; y < (int)SYR_TAPER_Y; y += 80)
-        DrawLine((int)SYR_WALL_LEFT, y, (int)SYR_WALL_RIGHT, y, Fade((Color){ 180, 210, 230, 255 }, 0.22f));
+    // Grade removida a pedido do usuário
+
+    // Partículas flutuantes (bolhas do líquido da vacina)
+    for (int i = 0; i < 40; i++)
+    {
+        // Movimento da direita para a esquerda e leve oscilação vertical
+        float bx = SYR_LEFT + fmodf(i * 137.5f - time * (20.0f + (i%15)), SYR_RIGHT - SYR_LEFT);
+        if (bx < SYR_LEFT) bx += (SYR_RIGHT - SYR_LEFT); // wrap
+        
+        float by = SYR_WALL_TOP + fmodf(i * 93.1f + sinf(time * 1.5f + i) * 15.0f, SYR_WALL_BOTTOM - SYR_WALL_TOP);
+        float bradius = 2.0f + (i % 5);
+        
+        // Efeito de pulsação na bolha
+        float alpha = 0.2f + 0.2f * sinf(time * 3.0f + i);
+        
+        DrawCircleV((Vector2){ bx, by }, bradius, Fade((Color){ 180, 240, 255, 255 }, alpha));
+        // Brilho na bolha
+        DrawCircleV((Vector2){ bx - bradius*0.3f, by - bradius*0.3f }, bradius*0.4f, Fade(WHITE, alpha * 1.5f));
+    }
 
     // -------------------------------------------------------------------------
     // PAREDES LATERAIS DO CILINDRO (bordas plásticas cinza-metal)
     // -------------------------------------------------------------------------
-    // Esquerda
-    DrawRectangle(0, (int)SYR_TOP,
-                  (int)SYR_WALL_LEFT, (int)(SYR_BOTTOM - SYR_TOP),
+    // Cima
+    DrawRectangle((int)SYR_LEFT, 0,
+                  (int)(SYR_RIGHT - SYR_LEFT), (int)SYR_WALL_TOP,
                   (Color){ 155, 175, 192, 255 });
-    // Direita
-    DrawRectangle((int)SYR_WALL_RIGHT, (int)SYR_TOP,
-                  SYRINGE_WIDTH - (int)SYR_WALL_RIGHT, (int)(SYR_BOTTOM - SYR_TOP),
+    // Baixo
+    DrawRectangle((int)SYR_LEFT, (int)SYR_WALL_BOTTOM,
+                  (int)(SYR_RIGHT - SYR_LEFT), SYRINGE_HEIGHT - (int)SYR_WALL_BOTTOM,
                   (Color){ 155, 175, 192, 255 });
 
     // -------------------------------------------------------------------------
-    // ÊMBOLO NO TOPO (bloco cinza-escuro + anel de vedação)
+    // ÊMBOLO NA DIREITA (bloco cinza-escuro + anel de vedação)
     // -------------------------------------------------------------------------
-    DrawRectangle(0, 0, SYRINGE_WIDTH, (int)SYR_TOP, (Color){ 128, 148, 162, 255 });
-    // Anel de borracha do êmbolo
+    float plungerX = SYR_RIGHT;
+    if (injectionTimer > 0.0f)
+    {
+        // Empurra o êmbolo rapidamente para a esquerda durante a cutscene (1.5s duração)
+        float progress = injectionTimer / 1.5f;
+        if (progress > 1.0f) progress = 1.0f;
+        plungerX = SYR_RIGHT - (progress * (SYR_RIGHT - SYR_LEFT - 40.0f));
+    }
+
+    DrawRectangle((int)plungerX, 0, SYRINGE_WIDTH - (int)plungerX, SYRINGE_HEIGHT, (Color){ 128, 148, 162, 255 });
+    // Anel de borracha do êmbolo (preto azulado)
     DrawRectangle(
-        (int)(SYR_WALL_LEFT - 12), (int)(SYR_TOP - 6),
-        (int)(SYR_WALL_RIGHT - SYR_WALL_LEFT + 24), 14,
-        (Color){ 90, 110, 128, 255 }
+        (int)(plungerX - 16), (int)(SYR_WALL_TOP - 8),
+        24, (int)(SYR_WALL_BOTTOM - SYR_WALL_TOP + 16),
+        (Color){ 40, 50, 60, 255 }
     );
-    DrawRectangleLinesEx((Rectangle){ 0, 0, SYRINGE_WIDTH, SYR_TOP }, 3.0f,
+    DrawRectangleLinesEx((Rectangle){ (int)plungerX, 0, SYRINGE_WIDTH - (int)plungerX, SYRINGE_HEIGHT }, 3.0f,
                           (Color){ 80, 100, 118, 255 });
     // Haste do êmbolo (centro)
-    DrawRectangle(SYRINGE_WIDTH / 2 - 10, 0, 20, (int)SYR_TOP,
+    DrawRectangle((int)plungerX, SYRINGE_HEIGHT / 2 - 14, SYRINGE_WIDTH - (int)plungerX, 28,
                   (Color){ 100, 120, 138, 255 });
 
     // -------------------------------------------------------------------------
-    // AFUNILAMENTO INFERIOR (paredes convergentes em direção ao bocal)
+    // AFUNILAMENTO INFERIOR (paredes convergentes em direção ao bocal, agora na ESQUERDA)
     // -------------------------------------------------------------------------
-    // Triângulo esquerdo
+    // Triângulo superior
     DrawTriangle(
-        (Vector2){ SYR_WALL_LEFT, SYR_TAPER_Y },
-        (Vector2){ 0.0f, SYR_TAPER_Y },
-        (Vector2){ (float)SYRINGE_WIDTH / 2.0f - 50.0f, SYR_BOTTOM },
+        (Vector2){ SYR_TAPER_X, SYR_WALL_TOP },
+        (Vector2){ SYR_LEFT, (float)SYRINGE_HEIGHT / 2.0f - 50.0f },
+        (Vector2){ SYR_TAPER_X, 0.0f },
         (Color){ 155, 175, 192, 255 }
     );
-    // Triângulo direito
+    // Triângulo inferior
     DrawTriangle(
-        (Vector2){ SYR_WALL_RIGHT, SYR_TAPER_Y },
-        (Vector2){ (float)SYRINGE_WIDTH / 2.0f + 50.0f, SYR_BOTTOM },
-        (Vector2){ (float)SYRINGE_WIDTH, SYR_TAPER_Y },
+        (Vector2){ SYR_TAPER_X, SYRINGE_HEIGHT },
+        (Vector2){ SYR_LEFT, (float)SYRINGE_HEIGHT / 2.0f + 50.0f },
+        (Vector2){ SYR_TAPER_X, SYR_WALL_BOTTOM },
         (Color){ 155, 175, 192, 255 }
     );
 
     // -------------------------------------------------------------------------
-    // BOCAL / AGULHA (base metálica)
+    // BOCAL / AGULHA (mais detalhada)
     // -------------------------------------------------------------------------
-    DrawRectangle((int)SYR_NEEDLE_X, (int)SYR_BOTTOM,
-                  (int)SYR_NEEDLE_W, (int)SYR_NEEDLE_H,
-                  (Color){ 175, 195, 210, 255 });
+    // Conector Luer-Lock (onde a agulha prende na seringa)
+    DrawRectangle((int)SYR_NEEDLE_X + 15, (int)SYR_NEEDLE_Y - 5,
+                  (int)SYR_NEEDLE_W - 15, (int)SYR_NEEDLE_H + 10,
+                  (Color){ 200, 220, 230, 255 });
     DrawRectangleLinesEx(
-        (Rectangle){ SYR_NEEDLE_X, SYR_BOTTOM, SYR_NEEDLE_W, SYR_NEEDLE_H },
-        2.0f, (Color){ 100, 128, 158, 255 }
+        (Rectangle){ SYR_NEEDLE_X + 15, SYR_NEEDLE_Y - 5, SYR_NEEDLE_W - 15, SYR_NEEDLE_H + 10 },
+        3.0f, (Color){ 100, 128, 158, 255 }
     );
-    // Ponta afunilada da agulha
+
+    // Canhão metálico da agulha
+    DrawRectangle((int)SYR_NEEDLE_X, (int)SYR_NEEDLE_Y + 10,
+                  15, (int)SYR_NEEDLE_H - 20,
+                  (Color){ 175, 195, 210, 255 });
+    
+    // Haste comprida e fina da agulha (indo para a esquerda)
+    DrawRectangle((int)SYR_NEEDLE_X - 120, (int)SYR_NEEDLE_Y + 25,
+                  120, 10,
+                  (Color){ 220, 230, 240, 255 });
+    DrawRectangleLinesEx(
+        (Rectangle){ SYR_NEEDLE_X - 120, SYR_NEEDLE_Y + 25, 120, 10 },
+        1.0f, (Color){ 100, 120, 140, 255 }
+    );
+    // Ponta chanfrada afiada da agulha
     DrawTriangle(
-        (Vector2){ SYR_NEEDLE_X, SYR_BOTTOM + SYR_NEEDLE_H },
-        (Vector2){ SYR_NEEDLE_X + SYR_NEEDLE_W, SYR_BOTTOM + SYR_NEEDLE_H },
-        (Vector2){ (float)SYRINGE_WIDTH / 2.0f, SYR_BOTTOM + SYR_NEEDLE_H + 30.0f },
-        (Color){ 160, 185, 205, 255 }
+        (Vector2){ SYR_NEEDLE_X - 140.0f, (float)SYRINGE_HEIGHT / 2.0f },
+        (Vector2){ SYR_NEEDLE_X - 120.0f, SYR_NEEDLE_Y + 35.0f },
+        (Vector2){ SYR_NEEDLE_X - 120.0f, SYR_NEEDLE_Y + 25.0f },
+        (Color){ 220, 230, 240, 255 }
     );
 
     // -------------------------------------------------------------------------
@@ -106,18 +153,18 @@ void DrawMapSeringa(Font font, int tutorialStep, float time)
             (Rectangle){ SYR_EXIT_X, SYR_EXIT_Y, SYR_EXIT_W, SYR_EXIT_H },
             2.5f, (Color){ 0, 220, 100, 255 }
         );
-        // Seta indicativa
-        float arrowX = SYRINGE_WIDTH / 2.0f;
+        // Seta indicativa para a ESQUERDA
+        float arrowX = SYR_EXIT_X + SYR_EXIT_W / 2.0f - 10.0f;
         float arrowY = SYR_EXIT_Y + SYR_EXIT_H / 2.0f;
         DrawTriangle(
-            (Vector2){ arrowX - 18, arrowY - 10 },
-            (Vector2){ arrowX + 18, arrowY - 10 },
-            (Vector2){ arrowX, arrowY + 14 },
+            (Vector2){ arrowX - 14, arrowY },
+            (Vector2){ arrowX + 10, arrowY + 18 },
+            (Vector2){ arrowX + 10, arrowY - 18 },
             Fade(WHITE, pulse * 0.85f)
         );
         Vector2 saidaSz = MeasureTextEx(font, "SAIDA", 14.0f, 1.0f);
         DrawTextEx(font, "SAIDA",
-            (Vector2){ arrowX - saidaSz.x / 2.0f, SYR_EXIT_Y + 6 },
+            (Vector2){ SYR_EXIT_X + SYR_EXIT_W / 2.0f - saidaSz.x / 2.0f, arrowY + 25 },
             14.0f, 1.0f, Fade(WHITE, 0.9f));
     }
 
@@ -125,14 +172,14 @@ void DrawMapSeringa(Font font, int tutorialStep, float time)
     // BORDA GERAL DO CILINDRO (highlight metálico)
     // -------------------------------------------------------------------------
     DrawRectangleLinesEx(
-        (Rectangle){ SYR_WALL_LEFT, SYR_TOP,
-                     SYR_WALL_RIGHT - SYR_WALL_LEFT, SYR_BOTTOM - SYR_TOP },
+        (Rectangle){ SYR_LEFT, SYR_WALL_TOP,
+                     SYR_RIGHT - SYR_LEFT, SYR_WALL_BOTTOM - SYR_WALL_TOP },
         4.0f, (Color){ 95, 125, 155, 255 }
     );
 
-    // Reflexo de luz (linha branca no lado esquerdo do cilindro)
-    DrawRectangle((int)SYR_WALL_LEFT + 4, (int)SYR_TOP + 8,
-                  6, (int)(SYR_TAPER_Y - SYR_TOP - 16),
+    // Reflexo de luz (linha branca na parte superior do cilindro)
+    DrawRectangle((int)SYR_LEFT + 8, (int)SYR_WALL_TOP + 4,
+                  (int)(SYR_RIGHT - SYR_LEFT - 16), 6,
                   Fade(WHITE, 0.18f));
 }
 
@@ -150,18 +197,18 @@ bool MapSeringa_CheckExit(Rectangle playerRect)
 // ============================================================================
 void MapSeringa_ApplyWallCollision(Vector2 *pos, float r)
 {
-    float wallTop    = SYR_TOP;
-    float wallBottom = SYR_BOTTOM;
-    float wallLeft   = SYR_WALL_LEFT;
-    float wallRight  = SYR_WALL_RIGHT;
+    float wallTop    = SYR_WALL_TOP;
+    float wallBottom = SYR_WALL_BOTTOM;
+    float wallLeft   = SYR_LEFT;
+    float wallRight  = SYR_RIGHT;
 
-    // Afunilamento: abaixo de SYR_TAPER_Y as paredes convergem
-    if (pos->y > SYR_TAPER_Y)
+    // Afunilamento: à esquerda de SYR_TAPER_X as paredes convergem no eixo Y
+    if (pos->x < SYR_TAPER_X)
     {
-        float t = (pos->y - SYR_TAPER_Y) / (SYRINGE_HEIGHT * 0.35f);
+        float t = (SYR_TAPER_X - pos->x) / (SYRINGE_WIDTH * 0.35f);
         if (t > 1.0f) t = 1.0f;
-        wallLeft  = SYR_WALL_LEFT  + t * (SYRINGE_WIDTH / 2.0f - 50.0f - SYR_WALL_LEFT);
-        wallRight = SYR_WALL_RIGHT - t * (SYR_WALL_RIGHT - (SYRINGE_WIDTH / 2.0f + 50.0f));
+        wallTop    = SYR_WALL_TOP    + t * (SYRINGE_HEIGHT / 2.0f - 50.0f - SYR_WALL_TOP);
+        wallBottom = SYR_WALL_BOTTOM - t * (SYR_WALL_BOTTOM - (SYRINGE_HEIGHT / 2.0f + 50.0f));
     }
 
     if (pos->x < wallLeft  + r) pos->x = wallLeft  + r;

@@ -4,7 +4,6 @@
 #include "../../include/gameplay.h"
 #include "raymath.h"
 #include "../../Assets/Maps/map_seringa.h"
-#include "../../Assets/Maps/map_organismo.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>

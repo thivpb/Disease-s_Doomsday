@@ -8,6 +8,7 @@
 typedef struct GameAssets {
     Font font;
     Music musicMain;
+    Music musicB;
     
     // SFX
     Sound sfxAttack;
@@ -19,6 +20,9 @@ typedef struct GameAssets {
     
     // Shaders
     Shader biologicalShader;
+    Shader shdLowHP;
+    int shdLowHPTimeLoc;
+    int shdLowHPResLoc;
     bool shaderLoaded;
 
 } GameAssets;

@@ -1,6 +1,8 @@
 #include "../../include/gameplay.h"
 #include "../../include/spatial_grid.h"
 #include "../../Assets/Maps/map_seringa.h"
+#include "../systems/combat_system.h"
+#include "../systems/wave_manager.h"
 #include "raymath.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,26 +19,44 @@
 // ============================================================================
 // AUXILIAR: EMISSOR DE PARTÍCULAS
 // ============================================================================
-void SpawnParticle(GameState *game, Vector2 position, Vector2 velocity, Color color, float size, float lifeTime)
+void InitParticlePool(GameState *game)
 {
-    for (int i = 0; i < MAX_PARTICLES; i++)
-    {
-        if (!game->particles[i].active)
-        {
-            game->particles[i].position = position;
-            game->particles[i].velocity = velocity;
-            game->particles[i].color = color;
-            game->particles[i].size = size;
-            game->particles[i].lifeTime = lifeTime;
-            game->particles[i].maxLifeTime = lifeTime;
-            game->particles[i].active = true;
-            break;
+    game->particlePoolCount = MAX_PARTICLES;
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        game->particles[i].active = false;
+        game->particlePool[i] = MAX_PARTICLES - 1 - i;
+    }
+}
+
+void FreeParticle(GameState *game, int idx)
+{
+    if (game->particles[idx].active) {
+        game->particles[idx].active = false;
+        if (game->particlePoolCount < MAX_PARTICLES) {
+            game->particlePool[game->particlePoolCount++] = idx;
         }
     }
 }
 
+void SpawnParticle(GameState *game, Vector2 position, Vector2 velocity, Color color, float size, float lifeTime)
+{
+    if (game->particlePoolCount > 0)
+    {
+        game->particlePoolCount--;
+        int idx = game->particlePool[game->particlePoolCount];
+
+        game->particles[idx].position = position;
+        game->particles[idx].velocity = velocity;
+        game->particles[idx].color = color;
+        game->particles[idx].size = size;
+        game->particles[idx].lifeTime = lifeTime;
+        game->particles[idx].maxLifeTime = lifeTime;
+        game->particles[idx].active = true;
+    }
+}
+
 // Emite uma explosão radial de partículas
-static void SpawnParticleExplosion(GameState *game, Vector2 pos, Color col, int count, float minSpeed, float maxSpeed, float size, float life)
+void SpawnParticleExplosion(GameState *game, Vector2 pos, Color col, int count, float minSpeed, float maxSpeed, float size, float life)
 {
     for (int i = 0; i < count; i++)
     {
@@ -65,30 +85,6 @@ void SpawnPowerUpAt(GameState *game, Vector2 position, int forcedType)
     }
 }
 
-// ============================================================================
-// AUXILIAR: SPAWN DE PROJÉTEIS
-// ============================================================================
-void SpawnProjectile(GameState *game, Vector2 pos, Vector2 target, ProjectileType type, int dmg)
-{
-    for (int i = 0; i < MAX_PROJECTILES; i++)
-    {
-        if (!game->projectiles[i].active)
-        {
-            game->projectiles[i].position = pos;
-            Vector2 dir = Vector2Normalize(Vector2Subtract(target, pos));
-            float speed = 300.0f;
-            if (type == PROJ_ACID_ARC) speed = 250.0f;
-            if (type == PROJ_VOID_BOLT) speed = 400.0f;
-            
-            game->projectiles[i].velocity = Vector2Scale(dir, speed);
-            game->projectiles[i].active = true;
-            game->projectiles[i].type = type;
-            game->projectiles[i].damage = dmg;
-            game->projectiles[i].hitbox = (Rectangle){ pos.x - 10, pos.y - 10, 20, 20 };
-            break;
-        }
-    }
-}
 
 // ============================================================================
 // INICIALIZAÇÃO DO JOGO
@@ -130,6 +126,19 @@ void InitGame(GameState *game)
     game->player.xp = 0;
     game->player.xpNeeded = 100;
     game->player.attackCooldown = 0.0f;
+    game->player.squashX = 1.0f;
+    game->player.squashY = 1.0f;
+    game->player.trailIndex = 0;
+    game->player.equippedWeapon = 1; // 1 = Lâmina Imunológica
+    game->player.healthPotions = 3;
+    game->player.poisonTimer = 0.0f;
+    game->player.slowTimer = 0.0f;
+    game->player.speedTimer = 0.0f;
+    game->player.shieldTimer = 0.0f;
+    game->player.attackBoostTimer = 0.0f;
+    game->player.facingDir = 1;
+    game->player.isMoving = false;
+    for (int i = 0; i < 10; i++) game->player.trail[i] = game->player.position;
 
     // Sistema
     game->wave = 1;
@@ -147,111 +156,13 @@ void InitGame(GameState *game)
     // Limpa vetores
     for (int i = 0; i < MAX_ENEMIES; i++) game->enemies[i].active = false;
     for (int i = 0; i < MAX_POWERUPS; i++) game->powerUps[i].active = false;
-    for (int i = 0; i < MAX_PARTICLES; i++) game->particles[i].active = false;
+    InitParticlePool(game);
 
     // Inicia o Tutorial (Seringa de Vacina) em vez de ir diretamente à onda 1
     InitTutorial(game);
 }
 
-// ============================================================================
-// PRÓXIMA ONDA DE INIMIGOS
-// ============================================================================
-void StartNextWave(GameState *game)
-{
-    // Aumenta quantidade a cada onda
-    int numEnemies = 8 + game->wave * 4;
-    if (numEnemies > MAX_ENEMIES) numEnemies = MAX_ENEMIES;
 
-    game->enemiesRemaining = numEnemies;
-
-    // Spawna inimigos longe do jogador (distância mínima de 450 px)
-    for (int i = 0; i < numEnemies; i++)
-    {
-        Vector2 spawnPos;
-        float distance = 0.0f;
-        
-        do
-        {
-            spawnPos.x = (float)GetRandomValue(100, MAP_WIDTH - 100);
-            spawnPos.y = (float)GetRandomValue(100, MAP_HEIGHT - 100);
-            distance = Vector2Distance(game->player.position, spawnPos);
-        } while (distance < 450.0f);
-
-        game->enemies[i].position = spawnPos;
-        game->enemies[i].active = true;
-
-        // Determina tipo e dificuldade do inimigo
-        int randVal = GetRandomValue(0, 100);
-        if (randVal < 60 || game->wave == 1)
-        {
-            // Inimigo Comum (Patrulha / Persegue)
-            game->enemies[i].type = 0;
-            game->enemies[i].tier = TIER_1;
-            game->enemies[i].maxHp = 30 + game->wave * 10;
-            game->enemies[i].hp = game->enemies[i].maxHp;
-            game->enemies[i].speed = 140.0f + GetRandomValue(-20, 20);
-        }
-        else if (randVal < 80)
-        {
-            // Inimigo Rápido / Aedes
-            game->enemies[i].type = 1;
-            game->enemies[i].tier = TIER_2;
-            game->enemies[i].isRanged = true;
-            game->enemies[i].maxHp = 20 + game->wave * 5;
-            game->enemies[i].hp = game->enemies[i].maxHp;
-            game->enemies[i].speed = 210.0f + GetRandomValue(-15, 15);
-        }
-        else if (randVal < 90 && game->wave >= 3)
-        {
-            // Spawner / Foco de Dengue (Parado)
-            game->enemies[i].type = 3;
-            game->enemies[i].tier = TIER_2;
-            game->enemies[i].maxHp = 150 + game->wave * 30;
-            game->enemies[i].hp = game->enemies[i].maxHp;
-            game->enemies[i].speed = 0.0f;
-            game->enemies[i].isRanged = false;
-            game->enemies[i].cooldownTimer = 5.0f; // Tempo entre spawns
-        }
-        else
-        {
-            // Inimigo Elite (Tamanho maior, muita vida)
-            game->enemies[i].type = 2;
-            if (game->wave >= 5 && i == 0) {
-                game->enemies[i].tier = TIER_3_BOSS;
-                game->enemies[i].maxHp = 1000;
-            } else {
-                game->enemies[i].tier = TIER_3;
-                game->enemies[i].maxHp = 80 + game->wave * 25;
-            }
-            game->enemies[i].hp = game->enemies[i].maxHp;
-            game->enemies[i].speed = 90.0f + GetRandomValue(-10, 10);
-            game->enemies[i].isRanged = true;
-        }
-
-        game->enemies[i].state = IDLE;
-        game->enemies[i].patrolTarget = spawnPos;
-        game->enemies[i].patrolTimer = (float)GetRandomValue(2, 5);
-    }
-
-    // Garante que existam alguns power-ups espalhados no mapa no início da onda
-    int powerUpsCount = 4 + game->wave;
-    if (powerUpsCount > 10) powerUpsCount = 10;
-    for (int i = 0; i < powerUpsCount; i++)
-    {
-        Vector2 itemPos = {
-            (float)GetRandomValue(200, MAP_WIDTH - 200),
-            (float)GetRandomValue(200, MAP_HEIGHT - 200)
-        };
-        SpawnPowerUpAt(game, itemPos, -1); // Tipo aleatório
-    }
-
-    // Partículas azuis de invocação de nova onda
-    for (int p = 0; p < 30; p++)
-    {
-        Vector2 vel = { (float)GetRandomValue(-150, 150), (float)GetRandomValue(-150, 150) };
-        SpawnParticle(game, game->player.position, vel, SKYBLUE, 6.0f, 1.2f);
-    }
-}
 
 // ============================================================================
 // TUTORIAL: INICIALIZAÇÃO DA SERINGA DE VACINA
@@ -270,32 +181,16 @@ void InitTutorial(GameState *game)
     game->tutorialDialog.charShown = 0;
     game->tutorialDialog.charTimer = 0.0f;
 
-    // Reposiciona o jogador no centro da Seringa
-    game->player.position = (Vector2){ SYRINGE_WIDTH / 2.0f, SYRINGE_HEIGHT / 2.0f };
+    // Reposiciona o jogador no canto direito da Seringa (para andar para a esquerda)
+    game->player.position = (Vector2){ SYRINGE_WIDTH - 200.0f, SYRINGE_HEIGHT / 2.0f };
 
     // Ajusta a câmera para o mapa menor da seringa
     game->camera.target = game->player.position;
     game->camera.offset = (Vector2){ SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f };
     game->camera.zoom   = 1.0f;
 
-    // Limpa power-ups anteriores e cria 3 novos para o Passo 0 (Treino de Movimentação)
+    // Limpa power-ups anteriores
     for (int i = 0; i < MAX_POWERUPS; i++) game->powerUps[i].active = false;
-    
-    // Esferas de treino (buffs)
-    game->powerUps[0].position = (Vector2){ SYRINGE_WIDTH / 2.0f - 200.0f, SYRINGE_HEIGHT * 0.35f };
-    game->powerUps[0].type = SPEED_BOOST;
-    game->powerUps[0].active = true;
-    game->powerUps[0].pulseTimer = 0.0f;
-
-    game->powerUps[1].position = (Vector2){ SYRINGE_WIDTH / 2.0f + 200.0f, SYRINGE_HEIGHT * 0.45f };
-    game->powerUps[1].type = ATTACK_BOOST;
-    game->powerUps[1].active = true;
-    game->powerUps[1].pulseTimer = 0.0f;
-
-    game->powerUps[2].position = (Vector2){ SYRINGE_WIDTH / 2.0f, SYRINGE_HEIGHT * 0.58f };
-    game->powerUps[2].type = SHIELD;
-    game->powerUps[2].active = true;
-    game->powerUps[2].pulseTimer = 0.0f;
 
     // Define a tela como Tutorial
     game->currentScreen = SCREEN_TUTORIAL;
@@ -379,10 +274,9 @@ void UpdateTutorial(GameState *game, float delta)
     if (game->player.speedTimer > 0.0f) currentSpeed *= 1.6f;
 
     Vector2 moveDir = { 0.0f, 0.0f };
+    // O jogador no tutorial (seringa) só pode se mover no eixo X
     if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) { moveDir.x += 1.0f; game->player.facingDir = 1; }
     if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) { moveDir.x -= 1.0f; game->player.facingDir = -1; }
-    if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) moveDir.y += 1.0f;
-    if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) moveDir.y -= 1.0f;
 
     bool moving = (moveDir.x != 0.0f || moveDir.y != 0.0f);
     game->player.isMoving = moving;
@@ -426,25 +320,19 @@ void UpdateTutorial(GameState *game, float delta)
 
     // Decaimento de cooldowns e buffs do jogador no tutorial
     if (game->player.attackCooldown > 0.0f) game->player.attackCooldown -= delta;
+    if (game->player.damageCooldown > 0.0f) game->player.damageCooldown -= delta;
     if (game->player.speedTimer > 0.0f) game->player.speedTimer -= delta;
     if (game->player.shieldTimer > 0.0f) game->player.shieldTimer -= delta;
     if (game->player.attackBoostTimer > 0.0f) game->player.attackBoostTimer -= delta;
     if (game->slashAnimTimer > 0.0f) game->slashAnimTimer -= delta;
 
     // ========================================================================
-    // PASSO 0: Coletar as 3 ampolas de vacina (Treino de Mobilidade)
+    // PASSO 0: Andar para a esquerda (Treino de Mobilidade)
     // ========================================================================
     if (game->tutorialStep == 0)
     {
-        bool itemsRemaining = false;
-        for (int i = 0; i < 3; i++)
-        {
-            if (game->powerUps[i].active)
-            {
-                itemsRemaining = true;
-                break;
-            }
-        }
+        // Avança quando passar de X=1000
+        bool itemsRemaining = (game->player.position.x > SYRINGE_WIDTH - 600.0f);
 
         if (!itemsRemaining)
         {
@@ -471,7 +359,7 @@ void UpdateTutorial(GameState *game, float delta)
                 if (!game->enemies[i].active)
                 {
                     game->enemies[i].active          = true;
-                    game->enemies[i].position        = (Vector2){ SYRINGE_WIDTH / 2.0f + 250.0f, SYRINGE_HEIGHT / 2.0f - 100.0f };
+                    game->enemies[i].position        = (Vector2){ SYRINGE_WIDTH / 2.0f, SYRINGE_HEIGHT / 2.0f };
                     game->enemies[i].hp              = 35;
                     game->enemies[i].maxHp           = 35;
                     game->enemies[i].speed           = 85.0f;
@@ -491,7 +379,7 @@ void UpdateTutorial(GameState *game, float delta)
             for (int p = 0; p < 15; p++)
             {
                 Vector2 vel = { (float)GetRandomValue(-80, 80), (float)GetRandomValue(-80, 80) };
-                SpawnParticle(game, (Vector2){ SYRINGE_WIDTH/2.0f+250, SYRINGE_HEIGHT/2.0f-100 }, vel, (Color){50,200,80,255}, 5.0f, 0.8f);
+                SpawnParticle(game, (Vector2){ SYRINGE_WIDTH/2.0f, SYRINGE_HEIGHT/2.0f }, vel, (Color){50,200,80,255}, 5.0f, 0.8f);
             }
         }
 
@@ -538,6 +426,8 @@ void UpdateTutorial(GameState *game, float delta)
                                 game->projectiles[j].velocity = projVel;
                                 game->projectiles[j].type = PROJ_ACID_ARC;
                                 game->projectiles[j].damage = 6;
+                                game->projectiles[j].isPlayerProjectile = false;
+                                game->projectiles[j].lifeTime = 8.0f;
                                 game->projectiles[j].hitbox = (Rectangle){ e->position.x - 10, e->position.y - 10, 20, 20 };
                                 break;
                             }
@@ -575,8 +465,11 @@ void UpdateTutorial(GameState *game, float delta)
 
         // Ataque com ESPAÇO ou clique (Q está reservado para diálogo)
         if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-            PlayerAttack(game);
-
+        {
+            extern Vector2 g_virtualMouse;
+            Vector2 worldMouse = GetScreenToWorld2D(g_virtualMouse, game->camera);
+            PlayerAttack(game, worldMouse);
+        }
         // Verifica se a bactéria tutorial foi eliminada
         bool algumVivo = false;
         for (int i = 0; i < MAX_ENEMIES; i++)
@@ -594,7 +487,7 @@ void UpdateTutorial(GameState *game, float delta)
             dlg->charTimer = 0.0f;
         }
     }
-
+    
     // ========================================================================
     // PASSO 2: Saída pela agulha (bocal da seringa)
     // ========================================================================
@@ -606,16 +499,36 @@ void UpdateTutorial(GameState *game, float delta)
             36.0f, 36.0f
         };
 
-        if (MapSeringa_CheckExit(playerRect))
+        if (!game->injectionCutscene && MapSeringa_CheckExit(playerRect))
         {
-            game->inTutorial = false;
+            game->injectionCutscene = true;
+            game->injectionTimer = 0.0f;
+            dlg->active = false;
+        }
 
-            // Limpa inimigos e partículas da seringa
-            for (int i = 0; i < MAX_ENEMIES;  i++) game->enemies[i].active   = false;
-            for (int i = 0; i < MAX_PARTICLES; i++) game->particles[i].active = false;
+        if (game->injectionCutscene)
+        {
+            game->injectionTimer += delta;
+            
+            // Tremor de tela
+            game->screenShake = 12.0f;
 
-            // Tela de carregamento para o organismo
-            RequestLoadingScreen(game, LOAD_TO_GAMEPLAY, 2.0f);
+            // Empurra o jogador para a esquerda
+            game->player.position.x -= 800.0f * delta;
+
+            if (game->injectionTimer > 1.5f)
+            {
+                game->injectionCutscene = false;
+                game->inTutorial = false;
+                game->screenShake = 0.0f;
+
+                // Limpa inimigos e partículas da seringa
+                for (int i = 0; i < MAX_POWERUPS; i++) game->powerUps[i].active = false;
+                InitParticlePool(game);
+
+                // Tela de carregamento para o organismo
+                RequestLoadingScreen(game, LOAD_TO_GAMEPLAY, 2.0f);
+            }
         }
     }
 
@@ -627,34 +540,10 @@ void UpdateTutorial(GameState *game, float delta)
     {
         if (game->enemies[i].active && game->enemies[i].isTutorialEnemy && game->enemies[i].state != DEATH)
         {
-            float dist = Vector2Distance(game->player.position, game->enemies[i].position);
-            if (dist < 35.0f) // colidiu
+            float distSqr = Vector2DistanceSqr(game->player.position, game->enemies[i].position);
+            if (distSqr < 35.0f * 35.0f) // colidiu
             {
-                if (game->player.shieldTimer > 0.0f)
-                {
-                    SpawnParticleExplosion(game, game->player.position, SKYBLUE, 10, 80.0f, 150.0f, 3.0f, 0.4f);
-                }
-                else
-                {
-                    game->player.hp -= 5;
-                    game->screenShake = 0.35f;
-                    SpawnParticleExplosion(game, game->player.position, RED, 12, 50.0f, 120.0f, 3.5f, 0.5f);
-                    
-                    if (game->player.hp <= 0)
-                    {
-                        game->player.hp = 0;
-                        game->currentScreen = SCREEN_GAMEOVER;
-                        return;
-                    }
-                }
-                
-                // Repele o inimigo ligeiramente para trás
-                Vector2 pushDir = Vector2Subtract(game->enemies[i].position, game->player.position);
-                if (pushDir.x == 0.0f && pushDir.y == 0.0f) pushDir = (Vector2){ 0.0f, 1.0f };
-                pushDir = Vector2Normalize(pushDir);
-                game->enemies[i].position = Vector2Add(game->enemies[i].position, Vector2Scale(pushDir, 60.0f));
-                game->enemies[i].state = HURT;
-                game->enemies[i].cooldownTimer = 0.5f; // stun
+                HandlePlayerEnemyCollision(game, &game->enemies[i]);
             }
         }
     }
@@ -674,23 +563,7 @@ void UpdateTutorial(GameState *game, float delta)
             Rectangle pRect = { game->player.position.x - 20, game->player.position.y - 20, 40, 40 };
             if (CheckCollisionRecs(game->projectiles[i].hitbox, pRect))
             {
-                game->projectiles[i].active = false;
-                if (game->player.shieldTimer > 0.0f)
-                {
-                    SpawnParticleExplosion(game, game->player.position, SKYBLUE, 10, 80.0f, 150.0f, 3.0f, 0.4f);
-                }
-                else
-                {
-                    game->player.hp -= game->projectiles[i].damage;
-                    game->screenShake = 0.3f;
-                    SpawnParticleExplosion(game, game->player.position, RED, 10, 50.0f, 100.0f, 3.0f, 0.5f);
-                    if (game->player.hp <= 0)
-                    {
-                        game->player.hp = 0;
-                        game->currentScreen = SCREEN_GAMEOVER;
-                        return;
-                    }
-                }
+                HandleProjectileCollision(game, &game->projectiles[i]);
             }
 
             if (game->projectiles[i].position.x < -100 || game->projectiles[i].position.x > SYRINGE_WIDTH + 100 ||
@@ -707,8 +580,8 @@ void UpdateTutorial(GameState *game, float delta)
         if (game->powerUps[i].active)
         {
             game->powerUps[i].pulseTimer += delta;
-            float dist = Vector2Distance(game->player.position, game->powerUps[i].position);
-            if (dist < 35.0f) // coletou
+            float distSqr = Vector2DistanceSqr(game->player.position, game->powerUps[i].position);
+            if (distSqr < 35.0f * 35.0f) // coletou
             {
                 game->powerUps[i].active = false;
                 game->player.score += 50;
@@ -740,119 +613,13 @@ void UpdateTutorial(GameState *game, float delta)
     // Atualiza câmera suavemente
     game->camera.target.x += (game->player.position.x - game->camera.target.x) * 0.10f;
     game->camera.target.y += (game->player.position.y - game->camera.target.y) * 0.10f;
+    
+    // Squash & Stretch recovery (essencial para resetar após tomar dano)
+    game->player.squashX = Lerp(game->player.squashX, 1.0f, 10.0f * delta);
+    game->player.squashY = Lerp(game->player.squashY, 1.0f, 10.0f * delta);
 }
 
-// ============================================================================
-// LOGICA DE COMBATE: ATAQUE DO JOGADOR
-// ============================================================================
-void PlayerAttack(GameState *game)
-{
-    if (game->player.attackCooldown > 0.0f) return;
 
-    // Define cooldown base
-    game->player.attackCooldown = 0.35f;
-
-    PlaySound(g_assets.sfxAttack);
-
-    // Configura animação de ataque (Slash)
-    game->slashAnimTimer = 0.22f;
-    game->slashAnimPos = game->player.position;
-    game->slashAnimRadius = 140.0f;
-
-    // Determina força do ataque
-    int dano = game->player.attackPower;
-    if (game->player.attackBoostTimer > 0.0f) dano *= 2; // Buff de ataque dobra dano
-
-    // Efeitos visuais: explosão de partículas de slash (brancas e azul claro)
-    SpawnParticleExplosion(game, game->player.position, LIGHTGRAY, 12, 100.0f, 250.0f, 4.0f, 0.4f);
-    SpawnParticleExplosion(game, game->player.position, SKYBLUE, 8, 150.0f, 300.0f, 3.5f, 0.35f);
-
-    // Câmera dá uma leve chacoalhada no ataque
-    game->screenShake = 0.25f;
-
-    // Verifica colisão com inimigos na área do ataque usando Spatial Grid
-    int collIndices[MAX_ENEMIES];
-    int collCount = GetEnemiesInRadius(game, game->player.position, game->slashAnimRadius, collIndices);
-
-    for (int k = 0; k < collCount; k++)
-    {
-        int i = collIndices[k];
-        if (!game->enemies[i].active || game->enemies[i].state == DEATH) continue;
-
-        // Acertou! Causa dano
-            game->enemies[i].hp -= dano;
-            PlaySound(g_assets.sfxEnemyHurt);
-
-            // Empurrão (Knockback) na direção oposta ao jogador
-            Vector2 knockbackDir = Vector2Subtract(game->enemies[i].position, game->player.position);
-            if (knockbackDir.x == 0.0f && knockbackDir.y == 0.0f) knockbackDir = (Vector2){ 1.0f, 0.0f };
-            knockbackDir = Vector2Normalize(knockbackDir);
-            
-            // Empurra o inimigo a uma distância segura
-            game->enemies[i].position = Vector2Add(game->enemies[i].position, Vector2Scale(knockbackDir, 55.0f));
-
-            // Partículas de sangue/dano no local do inimigo
-            Color hitColor = (game->enemies[i].type == 2) ? MAROON : RED;
-            SpawnParticleExplosion(game, game->enemies[i].position, hitColor, 15, 80.0f, 180.0f, 3.0f, 0.5f);
-
-            // Se o inimigo morreu
-            if (game->enemies[i].hp <= 0)
-            {
-                game->enemies[i].state = DEATH;
-                game->enemies[i].cooldownTimer = 0.5f; // Duração da animação de morte
-
-                // Partículas de morte e ganho de xp
-                SpawnParticleExplosion(game, game->enemies[i].position, GOLD, 20, 50.0f, 150.0f, 4.0f, 0.7f);
-
-                // Durante o tutorial NÃO contabilizamos onda nem score real
-                // — o progresso é controlado em UpdateTutorial()
-                if (game->inTutorial)
-                {
-                    // Apenas efeito visual de vitória na seringa
-                    SpawnParticleExplosion(game, game->enemies[i].position, (Color){0, 220, 120, 255}, 15, 60.0f, 140.0f, 4.0f, 0.7f);
-                    continue;
-                }
-
-                // --- Lógica normal de jogo (fora do tutorial) ---
-                game->enemiesRemaining--;
-                game->totalEnemiesKilled++;
-
-                // Aumenta score
-                int xpGanho = 20 * (game->enemies[i].type + 1);
-                int scoreGanho = 100 * (game->enemies[i].type + 1);
-                game->player.score += scoreGanho;
-                game->player.xp += xpGanho;
-
-                // Chance de drop de PowerUp (25%)
-                if (GetRandomValue(0, 100) < 25)
-                {
-                    SpawnPowerUpAt(game, game->enemies[i].position, -1);
-                }
-
-                // Verifica se eliminou todos os inimigos da onda
-                if (game->enemiesRemaining <= 0)
-                {
-                    game->wave++;
-                    if (game->wave > 5)
-                    {
-                        RequestLoadingScreen(game, LOAD_TO_VICTORY, 2.5f);
-                    }
-                    else
-                    {
-                        game->currentScreen = SCREEN_QUIZ;
-                    }
-                    return;
-                }
-            }
-            else
-            {
-                // Se o inimigo não morreu, entra em estado de ferimento (stun/flash)
-                game->enemies[i].state = HURT;
-                game->enemies[i].cooldownTimer = 0.25f; // flash/stun de 0.25s
-
-        }
-    }
-}
 
 // ============================================================================
 // CICLO PRINCIPAL DE ATUALIZAÇÃO DA LOGICA
@@ -882,6 +649,7 @@ void UpdateGameplay(GameState *game, float delta)
     if (game->player.shieldTimer > 0.0f) game->player.shieldTimer -= delta;
     if (game->player.attackBoostTimer > 0.0f) game->player.attackBoostTimer -= delta;
     if (game->player.attackCooldown > 0.0f) game->player.attackCooldown -= delta;
+    if (game->player.damageCooldown > 0.0f) game->player.damageCooldown -= delta;
     if (game->player.poisonTimer > 0.0f) {
         game->player.poisonTimer -= delta;
         // Dano de poison a cada frame (equivalente a 8 dano por segundo)
@@ -932,6 +700,19 @@ void UpdateGameplay(GameState *game, float delta)
         game->player.isMoving = false;
     }
 
+    // Atualiza Rastro (Trail)
+    static float trailTimer = 0.0f;
+    trailTimer += delta;
+    if (trailTimer > 0.02f) {
+        game->player.trail[game->player.trailIndex] = game->player.position;
+        game->player.trailIndex = (game->player.trailIndex + 1) % 10;
+        trailTimer = 0.0f;
+    }
+
+    // Squash & Stretch Lerp
+    game->player.squashX = Lerp(game->player.squashX, 1.0f, 10.0f * delta);
+    game->player.squashY = Lerp(game->player.squashY, 1.0f, 10.0f * delta);
+
     // Limites do mapa para o jogador
     float playerRadius = 20.0f;
     if (game->player.position.x < playerRadius) game->player.position.x = playerRadius;
@@ -940,11 +721,26 @@ void UpdateGameplay(GameState *game, float delta)
     if (game->player.position.y > MAP_HEIGHT - playerRadius) game->player.position.y = MAP_HEIGHT - playerRadius;
 
     // ------------------------------------------------------------------------
-    // 3. ENTRADA DE COMBATE
+    // 3. ENTRADA DE COMBATE E ARMAS
     // ------------------------------------------------------------------------
+    if (IsKeyPressed(KEY_ONE))   game->player.equippedWeapon = 1;
+    if (IsKeyPressed(KEY_TWO))   game->player.equippedWeapon = 2;
+    if (IsKeyPressed(KEY_THREE)) game->player.equippedWeapon = 3;
+    if (IsKeyPressed(KEY_FOUR))  game->player.equippedWeapon = 4;
+
+    if (IsKeyPressed(KEY_E) && game->player.healthPotions > 0 && game->player.hp < game->player.maxHp) {
+        game->player.healthPotions--;
+        game->player.hp += game->player.maxHp / 2; // Cura 50%
+        if (game->player.hp > game->player.maxHp) game->player.hp = game->player.maxHp;
+        PlaySound(g_assets.sfxPickup);
+        SpawnParticleExplosion(game, game->player.position, GREEN, 20, 50.0f, 150.0f, 4.0f, 0.8f);
+    }
+
     if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
-        PlayerAttack(game);
+        extern Vector2 g_virtualMouse;
+        Vector2 worldMouse = GetScreenToWorld2D(g_virtualMouse, game->camera);
+        PlayerAttack(game, worldMouse);
     }
 
     // Entrada de combate e fluxo de save serao tratados no rpg.c para capturar a screenshot
@@ -965,10 +761,7 @@ void UpdateGameplay(GameState *game, float delta)
                 Vector2Scale(game->particles[i].velocity, delta)
             );
             game->particles[i].lifeTime -= delta;
-            if (game->particles[i].lifeTime <= 0.0f)
-            {
-                game->particles[i].active = false;
-            }
+            if (game->particles[i].lifeTime <= 0.0f) FreeParticle(game, i);
         }
     }
 
@@ -982,8 +775,8 @@ void UpdateGameplay(GameState *game, float delta)
             game->powerUps[i].pulseTimer += delta;
 
             // Distância jogador -> item
-            float dist = Vector2Distance(game->player.position, game->powerUps[i].position);
-            if (dist < 35.0f) // Colidiu/Coletou
+            float distSqr = Vector2DistanceSqr(game->player.position, game->powerUps[i].position);
+            if (distSqr < 35.0f * 35.0f) // Colidiu/Coletou
             {
                 game->powerUps[i].active = false;
                 game->player.score += 50;
@@ -1033,8 +826,23 @@ void UpdateGameplay(GameState *game, float delta)
             }
             continue;
         }
+        float distSqrToPlayer = Vector2DistanceSqr(game->player.position, enemy->position);
         
-        float distToPlayer = Vector2Distance(game->player.position, enemy->position);
+        // Status updates
+        if (enemy->poisonTimer > 0.0f && enemy->state != DEATH) {
+            enemy->poisonTimer -= delta;
+            enemy->hp -= 15 * delta; // 15 dmg per second
+            if (enemy->hp <= 0) {
+                enemy->hp = 0;
+                enemy->state = DEATH;
+                enemy->cooldownTimer = 0.5f; // Death animation duration
+                PlaySound(g_assets.sfxEnemyHurt);
+                game->player.xp += (enemy->tier + 1) * 10;
+                game->player.score += (enemy->tier + 1) * 50;
+                if (game->enemiesRemaining > 0) game->enemiesRemaining--;
+            }
+        }
+        if (enemy->slowTimer > 0.0f) enemy->slowTimer -= delta;
 
         // State Machine Update
         if (enemy->state == HURT) {
@@ -1044,14 +852,25 @@ void UpdateGameplay(GameState *game, float delta)
         else if (enemy->state == ATTACK) {
             enemy->chargeTimer -= delta;
             if (enemy->chargeTimer <= 0.0f) {
-                // Atira
+                // Seleciona tipo de projétil baseado no tipo do inimigo
                 ProjectileType ptype = PROJ_ACID_ARC;
-                if (enemy->tier == TIER_2) ptype = PROJ_BULLET_SPREAD;
-                if (enemy->tier >= TIER_3) ptype = PROJ_VOID_BOLT;
+                int dmg = 8;
                 
-                int dmg = 10 + enemy->tier * 5;
+                if (enemy->type == 1) { // Dengue: picada espalhada
+                    ptype = PROJ_BULLET_SPREAD;
+                    dmg = 10;
+                } else if (enemy->type == 2) { // KPC: tiro pesado
+                    ptype = PROJ_VOID_BOLT;
+                    dmg = 20;
+                } else if (enemy->type == 4) { // TB: ácido moderado
+                    ptype = PROJ_ACID_ARC;
+                    dmg = 12;
+                }
+                
                 SpawnProjectile(game, enemy->position, game->player.position, ptype, dmg);
                 PlaySound(g_assets.sfxEnemyShoot);
+                
+                // KPC e Boss disparam múltiplos projéteis
                 if (enemy->tier == TIER_3_BOSS) {
                     Vector2 off1 = { game->player.position.x + 100, game->player.position.y };
                     Vector2 off2 = { game->player.position.x - 100, game->player.position.y };
@@ -1060,14 +879,14 @@ void UpdateGameplay(GameState *game, float delta)
                 }
                 
                 enemy->state = IDLE;
-                enemy->cooldownTimer = 1.2f; // cooldown
+                enemy->cooldownTimer = (enemy->type == 2) ? 2.5f : 1.5f; // KPC tem cooldown maior
             }
         }
-        else if (enemy->isRanged && distToPlayer < 400.0f && enemy->cooldownTimer <= 0.0f) {
+        else if (enemy->isRanged && distSqrToPlayer < 400.0f * 400.0f && enemy->cooldownTimer <= 0.0f) {
             enemy->state = ATTACK;
             enemy->chargeTimer = 0.6f;
         }
-        else if (distToPlayer < 450.0f) {
+        else if (distSqrToPlayer < 450.0f * 450.0f) {
             enemy->state = AGGRO;
         }
         else {
@@ -1107,38 +926,50 @@ void UpdateGameplay(GameState *game, float delta)
         if (enemy->state == AGGRO)
         {
             Vector2 chaseDir = Vector2Subtract(game->player.position, enemy->position);
-            float distToPlayer = Vector2Length(chaseDir);
+            float distSqrToPlayer = Vector2LengthSqr(chaseDir);
             chaseDir = Vector2Normalize(chaseDir);
+            
+            float currentSpeed = enemy->speed * (enemy->slowTimer > 0.0f ? 0.5f : 1.0f);
 
             if (!enemy->isRanged) {
                 // Inimigo melee comum (Patrulha / Persegue)
                 float chaseMult = (enemy->tier == TIER_2) ? 1.25f : 1.05f;
-                enemy->position = Vector2Add(enemy->position, Vector2Scale(chaseDir, enemy->speed * chaseMult * delta));
+                enemy->position = Vector2Add(enemy->position, Vector2Scale(chaseDir, currentSpeed * chaseMult * delta));
             } else {
                 // IA Específica: Aedes aegypti (Type 1) e KPC (Type 2)
                 if (enemy->type == 1) { // Aedes aegypti (errático, tenta manter distância)
-                    if (distToPlayer > 300.0f) {
+                    if (distSqrToPlayer > 300.0f * 300.0f) {
                         float timeFactor = GetTime() * 15.0f;
                         float angle = sinf(timeFactor) * 1.2f;
                         float nx = chaseDir.x * cosf(angle) - chaseDir.y * sinf(angle);
                         float ny = chaseDir.x * sinf(angle) + chaseDir.y * cosf(angle);
                         Vector2 zigzagDir = (Vector2){nx, ny};
-                        enemy->position = Vector2Add(enemy->position, Vector2Scale(zigzagDir, enemy->speed * delta));
-                    } else if (distToPlayer < 200.0f) {
+                        enemy->position = Vector2Add(enemy->position, Vector2Scale(zigzagDir, currentSpeed * delta));
+                    } else if (distSqrToPlayer < 200.0f * 200.0f) {
                         // Foge se o jogador chegar muito perto
-                        enemy->position = Vector2Add(enemy->position, Vector2Scale(chaseDir, -enemy->speed * delta));
+                        enemy->position = Vector2Add(enemy->position, Vector2Scale(chaseDir, -currentSpeed * delta));
                     }
                 } else if (enemy->type == 2) { // KPC / Superbactéria (Lento, mas persegue constantemente)
-                    if (distToPlayer > 250.0f) {
-                        enemy->position = Vector2Add(enemy->position, Vector2Scale(chaseDir, enemy->speed * 0.8f * delta));
+                    if (distSqrToPlayer > 250.0f * 250.0f) {
+                        enemy->position = Vector2Add(enemy->position, Vector2Scale(chaseDir, currentSpeed * 0.8f * delta));
                     }
                 }
             }
         }
+        else if (enemy->state == IDLE && !enemy->isRanged && enemy->type != 3)
+        {
+            float currentSpeed = enemy->speed * (enemy->slowTimer > 0.0f ? 0.5f : 1.0f);
+            Vector2 dir = Vector2Subtract(enemy->patrolTarget, enemy->position);
+            if (Vector2LengthSqr(dir) > 10.0f * 10.0f)
+            {
+                dir = Vector2Normalize(dir);
+                enemy->position = Vector2Add(enemy->position, Vector2Scale(dir, (currentSpeed * 0.4f) * delta));
+            }
+        }
         else if (enemy->state == IDLE)
         {
-            float distToTarget = Vector2Distance(enemy->position, enemy->patrolTarget);
-            if (distToTarget < 15.0f || enemy->patrolTimer <= 0.0f)
+            float distSqrToTarget = Vector2DistanceSqr(enemy->position, enemy->patrolTarget);
+            if (distSqrToTarget < 15.0f * 15.0f || enemy->patrolTimer <= 0.0f)
             {
                 float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
                 float radius = (float)GetRandomValue(100, 300);
@@ -1154,12 +985,15 @@ void UpdateGameplay(GameState *game, float delta)
         // FÍSICA DE COLISÃO DESLIZANTE (SEPARAÇÃO ENTRE INIMIGOS)
         // --------------------------------------------------------------------
         float enemyRadius = (enemy->type == 2) ? 35.0f : 20.0f;
-        for (int j = 0; j < MAX_ENEMIES; j++) {
+        int nearEnemies[MAX_ENEMIES];
+        int nearCount = GetEnemiesInRadius(game, enemy->position, 70.0f, nearEnemies);
+        for (int k = 0; k < nearCount; k++) {
+            int j = nearEnemies[k];
             if (i != j && game->enemies[j].active && game->enemies[j].state != DEATH) {
                 float otherRadius = (game->enemies[j].type == 2) ? 35.0f : 20.0f;
-                float dist = Vector2Distance(enemy->position, game->enemies[j].position);
+                float distSqr = Vector2DistanceSqr(enemy->position, game->enemies[j].position);
                 float minDist = enemyRadius + otherRadius;
-                if (dist < minDist && dist > 0.01f) {
+                if (distSqr < minDist * minDist && distSqr > 0.0001f) {
                     Vector2 separationDir = Vector2Subtract(enemy->position, game->enemies[j].position);
                     separationDir = Vector2Normalize(separationDir);
                     // Empurrão de separação ajustável
@@ -1177,52 +1011,11 @@ void UpdateGameplay(GameState *game, float delta)
         // --------------------------------------------------------------------
         // COLISÃO: DANO NO JOGADOR
         // --------------------------------------------------------------------
-        float colRange = (enemy->type == 2) ? 45.0f : 30.0f;
-        if (distToPlayer < colRange)
+        // Aumentado a pedido do usuário para que não entrem no personagem
+        float colRange = (enemy->type == 2) ? 65.0f : 45.0f;
+        if (distSqrToPlayer < colRange * colRange)
         {
-            // Se o escudo estiver ativo, absorve o dano e cria faíscas azuis
-            if (game->player.shieldTimer > 0.0f)
-            {
-                SpawnParticleExplosion(game, game->player.position, SKYBLUE, 10, 80.0f, 150.0f, 3.0f, 0.4f);
-            }
-            else
-            {
-                // Causa dano
-                int dmgBase = 8;
-                if (enemy->type == 1) { 
-                    dmgBase = 12; // Aedes
-                    game->player.poisonTimer = 3.0f; // Aedes transmite poison na picada
-                }
-                if (enemy->type == 2) { 
-                    dmgBase = 22; // Elite/KPC
-                    game->player.slowTimer = 2.0f; // KPC deixa o jogador lento
-                }
-                
-                game->player.hp -= dmgBase;
-                game->screenShake = 0.4f;
-
-                // Partículas vermelhas de ferimento
-                SpawnParticleExplosion(game, game->player.position, RED, 12, 50.0f, 130.0f, 3.5f, 0.5f);
-
-                // Checa Game Over
-                if (game->player.hp <= 0)
-                {
-                    PlaySound(g_assets.sfxDeath);
-                    game->player.hp = 0;
-                    game->currentScreen = SCREEN_GAMEOVER;
-                    return;
-                } else {
-                    PlaySound(g_assets.sfxHurt);
-                }
-            }
-
-            // Repele o inimigo ligeiramente para trás após causar o dano
-            Vector2 pushDir = Vector2Subtract(enemy->position, game->player.position);
-            if (pushDir.x == 0.0f && pushDir.y == 0.0f) pushDir = (Vector2){ 0.0f, 1.0f };
-            pushDir = Vector2Normalize(pushDir);
-            enemy->position = Vector2Add(enemy->position, Vector2Scale(pushDir, 50.0f));
-            enemy->state = HURT;
-            enemy->cooldownTimer = 0.5f; // stun duration
+            HandlePlayerEnemyCollision(game, enemy);
         }
     }
 
@@ -1237,39 +1030,93 @@ void UpdateGameplay(GameState *game, float delta)
             game->projectiles[i].hitbox.x = game->projectiles[i].position.x - 10;
             game->projectiles[i].hitbox.y = game->projectiles[i].position.y - 10;
             
-            // Colisão com jogador
-            Rectangle pRect = { game->player.position.x - 20, game->player.position.y - 20, 40, 40 };
-            if (CheckCollisionRecs(game->projectiles[i].hitbox, pRect))
-            {
-                game->projectiles[i].active = false;
-                if (game->player.shieldTimer > 0.0f) {
-                    SpawnParticleExplosion(game, game->player.position, SKYBLUE, 10, 80.0f, 150.0f, 3.0f, 0.4f);
-                } else {
-                    game->player.hp -= game->projectiles[i].damage;
+            if (game->projectiles[i].isPlayerProjectile) {
+                // Diminui o tempo de vida para explosivos
+                game->projectiles[i].lifeTime -= delta;
+                
+                // Granada
+                if (game->projectiles[i].type == PROJ_PLAYER_GRENADE && game->projectiles[i].lifeTime <= 0.0f) {
+                    game->projectiles[i].active = false;
+                    SpawnParticleExplosion(game, game->projectiles[i].position, ORANGE, 25, 150.0f, 400.0f, 4.0f, 0.6f);
+                    PlaySound(g_assets.sfxAttack); // reused as explosion
+                    game->screenShake = 0.5f;
                     
-                    // Aplica Debuffs baseado no tipo de projétil
-                    if (game->projectiles[i].type == PROJ_ACID_ARC) {
-                        game->player.poisonTimer = 3.0f; // 3 seg de poison
-                    } else if (game->projectiles[i].type == PROJ_VOID_BOLT) {
-                        game->player.slowTimer = 2.0f; // 2 seg de slow
+                    int collIndices[MAX_ENEMIES];
+                    int collCount = GetEnemiesInRadius(game, game->projectiles[i].position, 180.0f, collIndices);
+                    for (int k = 0; k < collCount; k++) {
+                        int eIdx = collIndices[k];
+                        if (game->enemies[eIdx].active && game->enemies[eIdx].state != DEATH) {
+                            game->enemies[eIdx].hp -= game->projectiles[i].damage;
+                            if (game->enemies[eIdx].hp <= 0) {
+                                game->enemies[eIdx].hp = 0;
+                                game->enemies[eIdx].state = DEATH;
+                                game->enemies[eIdx].cooldownTimer = 0.5f;
+                                game->player.xp += (game->enemies[eIdx].tier + 1) * 10;
+                                game->player.score += (game->enemies[eIdx].tier + 1) * 50;
+                                if (game->enemiesRemaining > 0) game->enemiesRemaining--;
+                            } else {
+                                game->enemies[eIdx].state = HURT;
+                                game->enemies[eIdx].cooldownTimer = 0.25f;
+                            }
+                        }
                     }
-
-                    game->screenShake = 0.3f;
-                    SpawnParticleExplosion(game, game->player.position, RED, 10, 50.0f, 100.0f, 3.0f, 0.5f);
-                    if (game->player.hp <= 0) {
-                        PlaySound(g_assets.sfxDeath);
-                        game->player.hp = 0;
-                        game->currentScreen = SCREEN_GAMEOVER;
-                        return;
-                    } else {
-                        PlaySound(g_assets.sfxHurt);
+                }
+                else {
+                    // Colisão normal de projéteis do player (exceto granada que explode no timer)
+                    if (game->projectiles[i].type != PROJ_PLAYER_GRENADE) {
+                        for (int j = 0; j < MAX_ENEMIES; j++) {
+                            if (game->enemies[j].active && game->enemies[j].state != DEATH) {
+                                // Hitbox maior para garantir colisão
+                                float eRadius = 45.0f;
+                                Rectangle eRect = { game->enemies[j].position.x - eRadius, game->enemies[j].position.y - eRadius, eRadius * 2, eRadius * 2 };
+                                if (CheckCollisionRecs(game->projectiles[i].hitbox, eRect)) {
+                                    // BFG não é desativado no primeiro hit
+                                    if (game->projectiles[i].type != PROJ_PLAYER_BFG) {
+                                        game->projectiles[i].active = false;
+                                    }
+                                    
+                                    game->enemies[j].hp -= game->projectiles[i].damage;
+                                    PlaySound(g_assets.sfxEnemyHurt);
+                                    SpawnParticleExplosion(game, game->enemies[j].position, RED, 10, 50.0f, 150.0f, 3.0f, 0.4f);
+                                    
+                                    if (game->enemies[j].hp <= 0) {
+                                        game->enemies[j].hp = 0;
+                                        game->enemies[j].state = DEATH;
+                                        game->enemies[j].cooldownTimer = 0.5f;
+                                        game->player.xp += (game->enemies[j].tier + 1) * 10;
+                                        game->player.score += (game->enemies[j].tier + 1) * 50;
+                                        if (game->enemiesRemaining > 0) game->enemiesRemaining--;
+                                    } else {
+                                        game->enemies[j].state = HURT;
+                                        game->enemies[j].cooldownTimer = 0.25f;
+                                    }
+                                    
+                                    // Se não é BFG, sai do loop (1 hit por projétil)
+                                    if (game->projectiles[i].type != PROJ_PLAYER_BFG) break;
+                                }
+                            }
+                        }
                     }
+                }
+            } else {
+                // Colisão com jogador (Inimigo atirou)
+                Rectangle pRect = { game->player.position.x - 22, game->player.position.y - 22, 44, 44 };
+                if (CheckCollisionRecs(game->projectiles[i].hitbox, pRect))
+                {
+                    HandleProjectileCollision(game, &game->projectiles[i]);
                 }
             }
             
-            // Remove se sair do mapa longe
-            if (game->projectiles[i].position.x < -100 || game->projectiles[i].position.x > MAP_WIDTH + 100 ||
-                game->projectiles[i].position.y < -100 || game->projectiles[i].position.y > MAP_HEIGHT + 100) {
+            // BFG: expira pelo lifetime
+            if (game->projectiles[i].type == PROJ_PLAYER_BFG && game->projectiles[i].lifeTime <= 0.0f) {
+                game->projectiles[i].active = false;
+                SpawnParticleExplosion(game, game->projectiles[i].position, GREEN, 30, 100.0f, 300.0f, 5.0f, 0.8f);
+            }
+            
+            // Remove se sair do mapa
+            if (game->projectiles[i].active &&
+                (game->projectiles[i].position.x < -200 || game->projectiles[i].position.x > MAP_WIDTH + 200 ||
+                 game->projectiles[i].position.y < -200 || game->projectiles[i].position.y > MAP_HEIGHT + 200)) {
                 game->projectiles[i].active = false;
             }
         }
@@ -1443,6 +1290,7 @@ void CarregarJogoSlot(GameState *game, int slot)
         game->currentScreen = oldScreen;
         game->screenShake = shakeOld;
         game->masterVolume = tempVol;
+        InitParticlePool(game);
 
         // Pular/Ler metadados iniciais
         char nameLine[32];
@@ -1564,6 +1412,31 @@ SaveSlotMeta CarregarMetadadosSlot(int slot)
     return meta;
 }
 
+// ===========================================================// Estruturas e variáveis globais para a thread de loading
+static volatile bool g_isBackgroundLoading = false;
+static GameState *g_tempLoadState = NULL;
+
+typedef struct LoadThreadData {
+    GameState *tempState;
+    int slot;
+} LoadThreadData;
+
+void BackgroundLoadThread(void *arg) {
+    LoadThreadData *data = (LoadThreadData *)arg;
+    CarregarJogoSlot(data->tempState, data->slot);
+    
+    // Simula um carregamento de assets pesado
+    int waitLoops = GetRandomValue(5, 10);
+    for (int i = 0; i < waitLoops; i++) {
+        // Simula delay de carregamento de texturas pesadas / leitura de disco
+        WaitTime(0.1);  
+    }
+
+    g_isBackgroundLoading = false;
+    free(data);
+    _endthread();
+}
+
 // ============================================================================
 // TELA DE CARREGAMENTO (LOADING SCREEN)
 // ============================================================================
@@ -1572,7 +1445,7 @@ void RequestLoadingScreen(GameState *game, LoadTarget target, float duration)
     // Descarrega o mapa e entidades anteriores para otimização
     for (int i = 0; i < MAX_ENEMIES; i++) game->enemies[i].active = false;
     for (int i = 0; i < MAX_POWERUPS; i++) game->powerUps[i].active = false;
-    for (int i = 0; i < MAX_PARTICLES; i++) game->particles[i].active = false;
+    InitParticlePool(game);
     for (int i = 0; i < MAX_PROJECTILES; i++) game->projectiles[i].active = false;
 
     // Se estivermos saindo do tutorial, reseta inTutorial
@@ -1586,6 +1459,28 @@ void RequestLoadingScreen(GameState *game, LoadTarget target, float duration)
     game->loadingTimer = 0.0f;
     game->loadingDuration = duration;
     game->loadingTip = GetRandomValue(0, 4);
+
+    if (game->loadSlot > 0) {
+        g_isBackgroundLoading = true;
+        g_tempLoadState = (GameState *)malloc(sizeof(GameState));
+        if (g_tempLoadState) {
+            memcpy(g_tempLoadState, game, sizeof(GameState));
+
+            LoadThreadData *data = (LoadThreadData *)malloc(sizeof(LoadThreadData));
+            if (data) {
+                data->tempState = g_tempLoadState;
+                data->slot = game->loadSlot;
+                _beginthread(BackgroundLoadThread, 0, data);
+            } else {
+                free(g_tempLoadState);
+                g_isBackgroundLoading = false;
+            }
+        } else {
+            g_isBackgroundLoading = false;
+        }
+    } else {
+        g_isBackgroundLoading = false;
+    }
 }
 
 void UpdateTelaLoading(GameState *game, float delta)
@@ -1609,18 +1504,21 @@ void UpdateTelaLoading(GameState *game, float delta)
             game->particles[i].position.y += game->particles[i].velocity.y * delta;
             game->particles[i].position.x += game->particles[i].velocity.x * delta;
             game->particles[i].lifeTime -= delta;
-            if (game->particles[i].lifeTime <= 0.0f) game->particles[i].active = false;
+            if (game->particles[i].lifeTime <= 0.0f) FreeParticle(game, i);
         }
     }
 
-    if (game->loadingTimer >= game->loadingDuration)
+    if (game->loadingTimer >= game->loadingDuration && !g_isBackgroundLoading)
     {
         // Se houver slot de save especificado para carregar, carrega-o agora
         if (game->loadSlot > 0)
         {
-            int slot = game->loadSlot;
             game->loadSlot = 0; // reseta
-            CarregarJogoSlot(game, slot);
+            if (g_tempLoadState) {
+                memcpy(game, g_tempLoadState, sizeof(GameState));
+                free(g_tempLoadState);
+                g_tempLoadState = NULL;
+            }
             game->currentScreen = SCREEN_GAMEPLAY;
             game->saveLoaded = true;
             strcpy(game->notificationMsg, "GAME LOADED!");

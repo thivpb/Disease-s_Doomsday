@@ -26,9 +26,9 @@
 #define THEME_COLOR_BORDER (Color){ 84, 52, 148, 255 }   // Cor base para bordas padrão
 
 
-// Dimensões do mapa do Tutorial: interior de uma Seringa de Vacina
-#define SYRINGE_WIDTH  1200
-#define SYRINGE_HEIGHT 1200
+// Dimensões do mapa do Tutorial: interior de uma Seringa de Vacina deitada
+#define SYRINGE_WIDTH  1600
+#define SYRINGE_HEIGHT 400
 
 #define MAX_ENEMIES 60
 #define MAX_POWERUPS 20
@@ -74,30 +74,11 @@ typedef struct DialogState
     float charTimer;    // acumulador de tempo para revelar próximo caractere
 } DialogState;
 
-typedef enum EnemyState
-{
-    IDLE,
-    AGGRO,
-    ATTACK,
-    HURT,
-    DEATH
-} EnemyState;
+// Entities
+#include "../src/entities/player.h"
+#include "../src/entities/enemy.h"
+#include "../src/entities/projectiles.h"
 
-typedef enum EnemyTier
-{
-    TIER_1,
-    TIER_2,
-    TIER_3,
-    TIER_3_BOSS
-} EnemyTier;
-
-typedef enum ProjectileType
-{
-    PROJ_ACID_ARC,          // Ácido bacteriano (Tier 1)
-    PROJ_BULLET_SPREAD,     // Picada espalhada do Aedes aegypti (Tier 2)
-    PROJ_VOID_BOLT,         // Toxina viral concentrada (Tier 3 / Elite)
-    PROJ_BOSS_BULLET        // Projétil da Superbactéria Resistente (Boss)
-} ProjectileType;
 
 typedef enum PowerUpType
 {
@@ -110,60 +91,7 @@ typedef enum PowerUpType
 // ============================================================================
 // ESTRUTURAS DE ENTIDADES
 // ============================================================================
-typedef struct Player
-{
-    char name[16];        // Nome do jogador
-    Vector2 position;
-    float speed;
-    int hp;
-    int maxHp;
-    int score;
-    int level;
-    int xp;
-    int xpNeeded;
-    int attackPower;
-    int susPoints; // Pontos para upgrades (Pontos do SUS)
-    
-    // Timers de Buffs e Debuffs (ativos se > 0)
-    float speedTimer;
-    float shieldTimer;
-    float attackBoostTimer;
-    float poisonTimer; // Dano ao longo do tempo
-    float slowTimer;   // Redução de velocidade
-    
-    // Combate
-    float attackCooldown; // Tempo até o próximo ataque
-    
-    // Animação
-    int facingDir; // 1 para Direita, -1 para Esquerda
-    bool isMoving;
 
-} Player;
-
-typedef struct Enemy
-{
-    Vector2 position;
-    float speed;
-    int hp;
-    int maxHp;
-    EnemyState state;
-    Vector2 patrolTarget;
-    float patrolTimer;
-    // Tipos de Patógenos:
-    // 0 = Bactéria Comum / Vírus da Gripe (Influenza) — TIER_1
-    // 1 = Mosquito Aedes aegypti (Dengue, ranged) — TIER_2
-    // 2 = Superbactéria Resistente / Infecção Grave (Elite/Boss) — TIER_3/BOSS
-    int type;
-    EnemyTier tier;
-    bool active;     // Ativo/vivo no jogo
-    bool isTutorialEnemy; // Inimigo de treino do tutorial (não ataca)
-    
-    
-    // Ranged
-    float cooldownTimer;
-    float chargeTimer;
-    bool isRanged;
-} Enemy;
 
 typedef struct PowerUp
 {
@@ -184,16 +112,7 @@ typedef struct Particle
     bool active;
 } Particle;
 
-typedef struct Projectile
-{
-    Vector2 position;
-    Vector2 velocity;
-    bool active;
-    ProjectileType type;
-    int damage;
-    Rectangle hitbox;
-    
-} Projectile;
+
 
 // ============================================================================
 // ESTRUTURAS DE UI
@@ -229,6 +148,8 @@ typedef struct GameState
     Enemy enemies[MAX_ENEMIES];
     PowerUp powerUps[MAX_POWERUPS];
     Particle particles[MAX_PARTICLES];
+    int particlePool[MAX_PARTICLES];
+    int particlePoolCount;
     Projectile projectiles[MAX_PROJECTILES];
     
     int totalEnemiesKilled;
@@ -241,6 +162,7 @@ typedef struct GameState
     char notificationMsg[32];
     float timeElapsed;
     float screenShake;
+    float uiAnimTimer;
     
     // Controle de Input do Nome
     bool nameInputActive;
@@ -262,6 +184,8 @@ typedef struct GameState
     float tutorialTimer;        // Cronômetro acumulador para o passo de movimento
     bool tutorialEnemySpawned;  // Garante que apenas 1 bactéria tutorial seja criada
     DialogState tutorialDialog; // Estado do sistema de diálogo do tutorial
+    bool injectionCutscene;     // Cutscene de injeção na seringa
+    float injectionTimer;       // Timer da cutscene
 
     // ---- Tela de Carregamento ----
     LoadTarget  loadTarget;      // Para onde ir após o loading terminar
@@ -269,6 +193,7 @@ typedef struct GameState
     float       loadingDuration; // Duração total da tela de loading (segundos)
     int         loadingTip;      // Índice da dica educativa atual
     int         loadSlot;        // Slot de save para carregar após o loading (0 = não carrega)
+    bool        shouldClose;     // Flag para fechar o jogo
 } GameState;
 
 #endif // GAME_H

@@ -20,8 +20,7 @@ void LoadGameAssets(void)
 
     // Carrega Música
     g_assets.musicMain = LoadMusicStream("Assets/Musica/DeepVoid.mp3");
-    
-    // SFX
+    g_assets.musicB = LoadMusicStream("Assets/Musica/DeepVoid.mp3");
     g_assets.sfxAttack = LoadSound("Assets/Musica/Ataque_Pulse.mp3");
     g_assets.sfxHurt = LoadSound("Assets/Musica/Dano_Heroi.mp3");
     // mantendo pickup/death apontando pros mesmos (mesmo q falhem ou se existirem dps)
@@ -34,8 +33,11 @@ void LoadGameAssets(void)
     
     // Shader
     g_assets.biologicalShader = LoadShader(0, "Assets/Shaders/biological.fs");
-    if (g_assets.biologicalShader.id != 0) {
+    g_assets.shdLowHP = LoadShader(0, "Assets/Shaders/low_hp_vignette.fs");
+    if (g_assets.biologicalShader.id != 0 && g_assets.shdLowHP.id != 0) {
         g_assets.shaderLoaded = true;
+        g_assets.shdLowHPTimeLoc = GetShaderLocation(g_assets.shdLowHP, "time");
+        g_assets.shdLowHPResLoc = GetShaderLocation(g_assets.shdLowHP, "resolution");
     }
 }
 
@@ -47,6 +49,7 @@ void UnloadGameAssets(void)
     }
 
     if (g_assets.musicMain.stream.buffer != NULL) UnloadMusicStream(g_assets.musicMain);
+    if (g_assets.musicB.stream.buffer != NULL) UnloadMusicStream(g_assets.musicB);
     if (g_assets.sfxAttack.stream.buffer != NULL) UnloadSound(g_assets.sfxAttack);
     if (g_assets.sfxHurt.stream.buffer != NULL) UnloadSound(g_assets.sfxHurt);
     if (g_assets.sfxPickup.stream.buffer != NULL) UnloadSound(g_assets.sfxPickup);
@@ -54,7 +57,10 @@ void UnloadGameAssets(void)
     if (g_assets.sfxEnemyHurt.stream.buffer != NULL) UnloadSound(g_assets.sfxEnemyHurt);
     if (g_assets.sfxEnemyShoot.stream.buffer != NULL) UnloadSound(g_assets.sfxEnemyShoot);
 
-    if (g_assets.shaderLoaded) UnloadShader(g_assets.biologicalShader);
+    if (g_assets.shaderLoaded) {
+        UnloadShader(g_assets.biologicalShader);
+        UnloadShader(g_assets.shdLowHP);
+    }
 
     CloseAudioDevice();
 }

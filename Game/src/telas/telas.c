@@ -5,27 +5,29 @@
 #include "../../include/asset_manager.h"
 #include "raymath.h"
 #include "../../Assets/Maps/map_seringa.h"
-#include "../../Assets/Maps/map_organismo.h"
 #include "../../Assets/@models/player_model.h"
 #include "../../Assets/@models/enemy_model.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include "rlgl.h"
 
 extern Vector2 g_virtualMouse;
 
-static void DrawSciFiBox(Rectangle r, Color col);
+static float EaseOutCubic(float t) {
+    t -= 1.0f;
+    return t * t * t + 1.0f;
+}
 
 // ============================================================================
 // DEFINIÇÃO DOS BOTÕES DAS TELAS (GLOBAIS DA UI)
 // ============================================================================
 UIButton menuButtons[] = {
-    { { 500, 260, 280, 40 }, "NEW GAME", false, false },
-    { { 500, 310, 280, 40 }, "LOAD GAME", false, false },
-    { { 500, 360, 280, 40 }, "SKINS", false, false },
-    { { 500, 410, 280, 40 }, "CONTROLS", false, false },
-    { { 500, 460, 280, 40 }, "SETTINGS", false, false },
-    { { 500, 510, 280, 40 }, "EXIT", false, false }
+    { { 500, 285, 280, 40 }, "NEW GAME", false, false },
+    { { 500, 335, 280, 40 }, "LOAD GAME", false, false },
+    { { 500, 385, 280, 40 }, "CONTROLS", false, false },
+    { { 500, 435, 280, 40 }, "SETTINGS", false, false },
+    { { 500, 485, 280, 40 }, "EXIT", false, false }
 };
 
 UIButton pauseButtons[] = {
@@ -114,8 +116,8 @@ void DrawTelaMenu(GameState *game, Font font, float time)
     {
         if (game->particles[i].active)
         {
-            DrawCircleV(game->particles[i].position, game->particles[i].size, 
-                        Fade(game->particles[i].color, game->particles[i].lifeTime / game->particles[i].maxLifeTime));
+            float s = game->particles[i].size;
+            DrawRectangleV((Vector2){ game->particles[i].position.x - s, game->particles[i].position.y - s }, (Vector2){ s * 2.0f, s * 2.0f }, Fade(game->particles[i].color, game->particles[i].lifeTime / game->particles[i].maxLifeTime));
         }
     }
 
@@ -231,7 +233,7 @@ void DrawTelaMenu(GameState *game, Font font, float time)
     }
 
     // Desenha Botões do Menu
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 5; i++)
     {
         DrawButton(menuButtons[i], font, (i == 1) ? anySaveExists : true);
     }
@@ -297,6 +299,15 @@ void DrawTelaPausa(GameState *game, Font font)
     // Escurece a tela de fundo da gameplay
     DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.65f));
 
+    float animDuration = 0.5f;
+    float t = game->uiAnimTimer / animDuration;
+    if (t > 1.0f) t = 1.0f;
+    float ease = EaseOutCubic(t);
+    float offsetY = (1.0f - ease) * -800.0f; // Começa de cima
+
+    rlPushMatrix();
+    rlTranslatef(0.0f, offsetY, 0.0f);
+
     // Caixa de diálogo central (Glassmorphism místico do void)
     DrawRectangleRounded((Rectangle){ 420, 130, 440, 350 }, 0.05f, 6, Fade((Color){ 12, 8, 22, 255 }, 0.92f));
     DrawRectangleRoundedLines((Rectangle){ 420, 130, 440, 350 }, 0.05f, 6, THEME_COLOR_BORDER);
@@ -309,6 +320,8 @@ void DrawTelaPausa(GameState *game, Font font)
     {
         DrawButton(pauseButtons[i], font, true);
     }
+    
+    rlPopMatrix();
 }
 
 
@@ -363,8 +376,8 @@ void DrawTelaVitoria(GameState *game, Font font)
     {
         if (game->particles[i].active)
         {
-            DrawCircleV(game->particles[i].position, game->particles[i].size, 
-                        Fade(game->particles[i].color, game->particles[i].lifeTime / game->particles[i].maxLifeTime));
+            float s = game->particles[i].size;
+            DrawRectangleV((Vector2){ game->particles[i].position.x - s, game->particles[i].position.y - s }, (Vector2){ s * 2.0f, s * 2.0f }, Fade(game->particles[i].color, game->particles[i].lifeTime / game->particles[i].maxLifeTime));
         }
     }
 
@@ -404,7 +417,7 @@ void DrawTelaVitoria(GameState *game, Font font)
 // 6. MINI-MAPA & HUD DA GAMEPLAY
 // ============================================================================
 // Auxiliary Sci-fi corner brackets container helper
-static void DrawSciFiBox(Rectangle r, Color col)
+void DrawSciFiBox(Rectangle r, Color col)
 {
     // Deep dark translucent panel background (cockpit glass style)
     DrawRectangleRec(r, Fade((Color){ 8, 6, 16, 255 }, 0.65f));
@@ -427,669 +440,6 @@ static void DrawSciFiBox(Rectangle r, Color col)
     // Bottom-right corner
     DrawLineEx((Vector2){ r.x + r.width, r.y + r.height }, (Vector2){ r.x + r.width - len, r.y + r.height }, thickness, col);
     DrawLineEx((Vector2){ r.x + r.width, r.y + r.height }, (Vector2){ r.x + r.width, r.y + r.height - len }, thickness, col);
-}
-
-void DrawHUD(GameState *game, Font font)
-{
-    // ------------------------------------------------------------------------
-    // A. BARRA DE STATUS DO JOGADOR (HP & XP)
-    // ------------------------------------------------------------------------
-    // Painel superior esquerdo minimalista estilo cockpit espacial (360x95)
-    DrawSciFiBox((Rectangle){ 20, 20, 360, 95 }, THEME_COLOR_MAIN);
-
-    // Informações básicas (Nome à esquerda, Nível à direita)
-    DrawTextEx(font, game->player.name, (Vector2){ 35, 28 }, 18.0f, 1.0f, THEME_COLOR_MAIN);
-    
-    char lvlStr[16];
-    sprintf(lvlStr, "LV. %d", game->player.level);
-    Vector2 lvlSize = MeasureTextEx(font, lvlStr, 14.0f, 1.0f);
-    DrawTextEx(font, lvlStr, (Vector2){ 365.0f - lvlSize.x, 30.0f }, 14.0f, 1.0f, GOLD);
-
-    // Barra de HP (Fundo escuro, preenchimento neon laser cyan/red)
-    DrawRectangleRounded((Rectangle){ 35, 54, 220, 10 }, 0.5f, 4, (Color){ 45, 10, 15, 255 });
-    float hpPercent = (float)game->player.hp / game->player.maxHp;
-    if (hpPercent > 0.0f)
-    {
-        Color hpColor = (hpPercent > 0.45f) ? THEME_COLOR_MAIN : (hpPercent > 0.2f) ? ORANGE : RED;
-        DrawRectangleRounded((Rectangle){ 35, 54, 220.0f * hpPercent, 10 }, 0.5f, 4, hpColor);
-    }
-    
-    char hpStr[32];
-    sprintf(hpStr, "%d/%d HP", game->player.hp, game->player.maxHp);
-    Vector2 hpSize = MeasureTextEx(font, hpStr, 13.0f, 1.0f);
-    DrawTextEx(font, hpStr, (Vector2){ 365.0f - hpSize.x, 52.0f }, 13.0f, 1.0f, WHITE);
-
-    // Barra de XP (Laser violeta bem fino)
-    DrawTextEx(font, "XP", (Vector2){ 35, 73 }, 11.0f, 1.0f, (Color){ 224, 64, 251, 255 });
-    DrawRectangleRounded((Rectangle){ 60, 75, 305, 6 }, 0.5f, 4, BLACK);
-    float xpPercent = (float)game->player.xp / game->player.xpNeeded;
-    if (xpPercent > 0.0f)
-    {
-        DrawRectangleRounded((Rectangle){ 60, 75, 305.0f * xpPercent, 6 }, 0.5f, 4, (Color){ 224, 64, 251, 255 });
-    }
-
-    // ------------------------------------------------------------------------
-    // B. PAINEL DE ONDA / HORDA (SUPERIOR CENTRAL - BANNER HOLO EM CAIXA SCI-FI)
-    // ------------------------------------------------------------------------
-    Rectangle waveBox = { 490, 20, 300, 60 };
-    DrawSciFiBox(waveBox, THEME_COLOR_MAIN);
-
-    const char *waveTxt = TextFormat("ONDA DE INFEÇÃO: %d / 5", game->wave);
-    Vector2 waveTxtSize = MeasureTextEx(font, waveTxt, 16.0f, 1.0f);
-    DrawTextEx(font, waveTxt, (Vector2){ 640.0f - waveTxtSize.x / 2.0f, 28.0f }, 16.0f, 1.0f, GOLD);
-
-    const char *remTxt = TextFormat("Patógenos Ativos: %d", game->enemiesRemaining);
-    Vector2 remTxtSize = MeasureTextEx(font, remTxt, 13.0f, 1.0f);
-    DrawTextEx(font, remTxt, (Vector2){ 640.0f - remTxtSize.x / 2.0f, 48.0f }, 13.0f, 1.0f, WHITE);
-
-    // ------------------------------------------------------------------------
-    // C. PONTUAÇÃO (SUPERIOR DIREITO)
-    // ------------------------------------------------------------------------
-    DrawSciFiBox((Rectangle){ 900, 20, 150, 55 }, THEME_COLOR_MAIN);
-    DrawTextEx(font, "SCORE", (Vector2){ 915, 27 }, 12.0f, 1.0f, GRAY);
-    DrawTextEx(font, TextFormat("%06d", game->player.score), (Vector2){ 915, 42 }, 20.0f, 1.0f, YELLOW);
-
-    // ------------------------------------------------------------------------
-    // D. INDICADORES VISUAIS DE BUFFS ATIVOS (ABAIXO DO PAINEL DE STATUS)
-    // ------------------------------------------------------------------------
-    int buffCount = 0;
-    
-    // Buff Velocidade
-    if (game->player.speedTimer > 0.0f)
-    {
-        Rectangle rBuff = { 20, 130.0f + (float)buffCount * 32.0f, 190, 26 };
-        DrawRectangleRec(rBuff, Fade((Color){ 10, 8, 22, 255 }, 0.75f));
-        DrawRectangle((int)rBuff.x, (int)rBuff.y, 4, (int)rBuff.height, YELLOW);
-        DrawRectangleLinesEx(rBuff, 1.0f, Fade(YELLOW, 0.25f));
-        
-        DrawTextEx(font, TextFormat("SPEED: %.1fs", game->player.speedTimer), 
-                   (Vector2){ rBuff.x + 12, rBuff.y + 7 }, 12.0f, 1.0f, YELLOW);
-        buffCount++;
-    }
-
-    // Buff Escudo
-    if (game->player.shieldTimer > 0.0f)
-    {
-        Rectangle rBuff = { 20, 130.0f + (float)buffCount * 32.0f, 190, 26 };
-        DrawRectangleRec(rBuff, Fade((Color){ 10, 8, 22, 255 }, 0.75f));
-        DrawRectangle((int)rBuff.x, (int)rBuff.y, 4, (int)rBuff.height, SKYBLUE);
-        DrawRectangleLinesEx(rBuff, 1.0f, Fade(SKYBLUE, 0.25f));
-        
-        DrawTextEx(font, TextFormat("SHIELD: %.1fs", game->player.shieldTimer), 
-                   (Vector2){ rBuff.x + 12, rBuff.y + 7 }, 12.0f, 1.0f, SKYBLUE);
-        buffCount++;
-    }
-
-    // Buff Dano
-    if (game->player.attackBoostTimer > 0.0f)
-    {
-        Rectangle rBuff = { 20, 130.0f + (float)buffCount * 32.0f, 190, 26 };
-        DrawRectangleRec(rBuff, Fade((Color){ 10, 8, 22, 255 }, 0.75f));
-        DrawRectangle((int)rBuff.x, (int)rBuff.y, 4, (int)rBuff.height, ORANGE);
-        DrawRectangleLinesEx(rBuff, 1.0f, Fade(ORANGE, 0.25f));
-        
-        DrawTextEx(font, TextFormat("DAMAGE x2: %.1fs", game->player.attackBoostTimer), 
-                   (Vector2){ rBuff.x + 12, rBuff.y + 7 }, 12.0f, 1.0f, ORANGE);
-        buffCount++;
-    }
-
-    // ------------------------------------------------------------------------
-    // E. RADAR ESPACIAL DENTRO DO HUD (CIRCULAR, CENTRADO NO PLAYER)
-    // ------------------------------------------------------------------------
-    Vector2 radarCenter = { 1195.0f, 85.0f };
-    float radarRadius = 65.0f;
-    float radarRange = 1200.0f; // Alcance do radar local
-    
-    // Fundo do Radar
-    DrawCircleV(radarCenter, radarRadius, Fade((Color){ 10, 8, 22, 255 }, 0.65f));
-    
-    // Moldura decorativa sci-fi ao redor do radar
-    Rectangle radarFrame = { radarCenter.x - radarRadius - 5, radarCenter.y - radarRadius - 5, radarRadius * 2 + 10, radarRadius * 2 + 10 };
-    DrawRectangleLinesEx(radarFrame, 1.0f, Fade(THEME_COLOR_MAIN, 0.3f));
-    // Moldura decorativa nos cantos
-    float len = 6.0f;
-    DrawLineEx((Vector2){ radarFrame.x, radarFrame.y }, (Vector2){ radarFrame.x + len, radarFrame.y }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x, radarFrame.y }, (Vector2){ radarFrame.x, radarFrame.y + len }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x + radarFrame.width, radarFrame.y }, (Vector2){ radarFrame.x + radarFrame.width - len, radarFrame.y }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x + radarFrame.width, radarFrame.y }, (Vector2){ radarFrame.x + radarFrame.width, radarFrame.y + len }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x, radarFrame.y + radarFrame.height }, (Vector2){ radarFrame.x + len, radarFrame.y + radarFrame.height }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x, radarFrame.y + radarFrame.height }, (Vector2){ radarFrame.x, radarFrame.y + radarFrame.height - len }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x + radarFrame.width, radarFrame.y + radarFrame.height }, (Vector2){ radarFrame.x + radarFrame.width - len, radarFrame.y + radarFrame.height }, 1.5f, THEME_COLOR_MAIN);
-    DrawLineEx((Vector2){ radarFrame.x + radarFrame.width, radarFrame.y + radarFrame.height }, (Vector2){ radarFrame.x + radarFrame.width, radarFrame.y + radarFrame.height - len }, 1.5f, THEME_COLOR_MAIN);
-
-    // Anéis Concêntricos Neon
-    DrawCircleLines(radarCenter.x, radarCenter.y, radarRadius, THEME_COLOR_MAIN);
-    DrawCircleLines(radarCenter.x, radarCenter.y, radarRadius * 0.66f, Fade(THEME_COLOR_MAIN, 0.25f));
-    DrawCircleLines(radarCenter.x, radarCenter.y, radarRadius * 0.33f, Fade(THEME_COLOR_MAIN, 0.15f));
-    
-    // Retículos do Radar
-    DrawLineV((Vector2){ radarCenter.x - radarRadius, radarCenter.y }, (Vector2){ radarCenter.x + radarRadius, radarCenter.y }, Fade(THEME_COLOR_MAIN, 0.2f));
-    DrawLineV((Vector2){ radarCenter.x, radarCenter.y - radarRadius }, (Vector2){ radarCenter.x, radarCenter.y + radarRadius }, Fade(THEME_COLOR_MAIN, 0.2f));
-    
-    // Efeito sweep (varredura laser giratória)
-    float sweepTime = (float)GetTime() * 3.0f;
-    Vector2 sweepEnd = {
-        radarCenter.x + cosf(sweepTime) * radarRadius,
-        radarCenter.y + sinf(sweepTime) * radarRadius
-    };
-    DrawLineEx(radarCenter, sweepEnd, 1.5f, Fade(THEME_COLOR_MAIN, 0.5f));
-
-    // A. Desenha os Power-Ups no radar (Pontos amarelos)
-    for (int i = 0; i < MAX_POWERUPS; i++)
-    {
-        if (game->powerUps[i].active)
-        {
-            Vector2 diff = Vector2Subtract(game->powerUps[i].position, game->player.position);
-            float dist = Vector2Length(diff);
-            if (dist <= radarRange)
-            {
-                float scale = radarRadius / radarRange;
-                Vector2 dotPos = Vector2Add(radarCenter, Vector2Scale(diff, scale));
-                DrawCircleV(dotPos, 2.5f, YELLOW);
-            }
-        }
-    }
-
-    // B. Desenha os Inimigos no radar (Pontos vermelhos/laranjas/boss maior)
-    for (int i = 0; i < MAX_ENEMIES; i++)
-    {
-        if (game->enemies[i].active)
-        {
-            Vector2 diff = Vector2Subtract(game->enemies[i].position, game->player.position);
-            float dist = Vector2Length(diff);
-            if (dist <= radarRange)
-            {
-                float scale = radarRadius / radarRange;
-                Vector2 dotPos = Vector2Add(radarCenter, Vector2Scale(diff, scale));
-                Color dotCol = (game->enemies[i].type == 2) ? MAROON : (game->enemies[i].state == AGGRO) ? RED : ORANGE;
-                float dotSize = (game->enemies[i].type == 2) ? 3.5f : 2.0f;
-                DrawCircleV(dotPos, dotSize, dotCol);
-            }
-        }
-    }
-
-    // C. Desenha o Jogador no centro do radar (Ponto azul ciano pulsando)
-    float pPulse = 3.0f + sinf((float)GetTime() * 6.0f) * 0.8f;
-    DrawCircleV(radarCenter, pPulse, SKYBLUE);
-    DrawCircleLines(radarCenter.x, radarCenter.y, pPulse + 2.0f, Fade(SKYBLUE, 0.5f));
-
-    // Rótulo do Radar
-    DrawTextEx(font, "BIOSSENSOR", (Vector2){ radarCenter.x - 34.0f, radarCenter.y + radarRadius + 8.0f }, 11.0f, 1.0f, GRAY);
-    
-    // Notificação de salvamento no rodapé
-    if (game->saveLoaded)
-    {
-        DrawRectangleRounded((Rectangle){ 490, 670, 300, 30 }, 0.4f, 4, Fade(GREEN, 0.2f));
-        DrawRectangleRoundedLines((Rectangle){ 490, 670, 300, 30 }, 0.4f, 4, GREEN);
-        
-        Vector2 textSz = MeasureTextEx(font, game->notificationMsg, 14.0f, 1.0f);
-        DrawTextEx(font, game->notificationMsg, (Vector2){ 490.0f + 150.0f - textSz.x/2.0f, 678.0f }, 14.0f, 1.0f, GREEN);
-        
-        // Some após 3 segundos
-        if (game->timeElapsed > 3.0f) game->saveLoaded = false;
-    }
-}
-
-// ============================================================================
-
-// ============================================================================
-// AUXILIAR: DESENHAR O JOGADOR DE ACORDO COM A SKIN ATUAL
-// ============================================================================
-void DrawPlayerHero(GameState *game, Vector2 pPos, float playerSize)
-{
-    bool isBoosted = (game->player.attackBoostTimer > 0.0f);
-    Color pCol = isBoosted ? GOLD : THEME_COLOR_MAIN;
-    // Renderiza a forma base do Herói (Cavaleiro Branco)
-    // Passa o tamanho maior (60.0f em vez de playerSize) para mais detalhes
-    DrawPlayerModel(&game->player, 60.0f, pCol, GetTime());
-
-    // D. Efeito do Escudo (Circulo ciano translúcido ao redor)
-    if (game->player.shieldTimer > 0.0f)
-    {
-        float ringRad = playerSize * 0.95f + sinf((float)GetTime() * 12.0f) * 3.0f;
-        DrawCircleLines(pPos.x, pPos.y, ringRad, Fade(SKYBLUE, 0.85f));
-        DrawCircle(pPos.x, pPos.y, ringRad, Fade(SKYBLUE, 0.12f));
-    }
-}
-
-// ============================================================================
-// DIBUJA A TELA DE GAMEPLAY (MUNDO 2D + HUD + RADAR)
-// ============================================================================
-void DrawTelaGameplay(GameState *game, Font font, bool drawHUD)
-{
-    // Determina a cor de fundo (Normal ou fase do Boss Superbactéria)
-    Color bgColor = (Color){ 6, 14, 8, 255 };  // Verde-petóleo biológico padrão
-    Color gridColor = Fade((Color){0, 100, 40, 255}, 0.15f);
-    
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (game->enemies[i].active && game->enemies[i].tier == TIER_3_BOSS) {
-            float hpPercent = (float)game->enemies[i].hp / game->enemies[i].maxHp;
-            if (hpPercent < 0.33f) {
-                // Phase 3: Vermelho escuro distorcido
-                bgColor = (Color){ 30, 5, 5, 255 };
-                gridColor = Fade(RED, 0.25f);
-            } else if (hpPercent < 0.66f) {
-                // Phase 2: Roxo corrompido
-                bgColor = (Color){ 20, 5, 25, 255 };
-                gridColor = Fade(MAGENTA, 0.2f);
-            }
-            break;
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // 1. DESENHA O MUNDO DO JOGO (AFETADO PELA CÂMERA 2D)
-    // ------------------------------------------------------------------------
-    BeginMode2D(game->camera);
-
-    // Desenha o mapa do Organismo separado
-    bool isBossFight = false;
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (game->enemies[i].active && game->enemies[i].tier == TIER_3_BOSS) {
-            isBossFight = true;
-            break;
-        }
-    }
-    DrawMapOrganismo(font, isBossFight, bgColor, gridColor);
-
-    // A. Desenha os Power-Ups (Quadrados amarelos com efeito glow pulsante)
-    for (int i = 0; i < MAX_POWERUPS; i++)
-    {
-        if (game->powerUps[i].active)
-        {
-            float pulse = 24.0f + sinf(game->powerUps[i].pulseTimer * 6.0f) * 4.0f;
-            Vector2 pos = game->powerUps[i].position;
-
-            // Efeito visual de luz ao redor
-            DrawCircleV(pos, pulse + 6.0f, Fade(YELLOW, 0.18f));
-            DrawRectangleRec((Rectangle){ pos.x - pulse/2.0f, pos.y - pulse/2.0f, pulse, pulse }, YELLOW);
-            DrawRectangleLinesEx((Rectangle){ pos.x - pulse/2.0f, pos.y - pulse/2.0f, pulse, pulse }, 2.0f, WHITE);
-            
-            // Ícone interno descritivo desenhado com cor escura
-            const char *itemChar = "P";
-            if (game->powerUps[i].type == HP_RECOVERY) itemChar = "H";
-            if (game->powerUps[i].type == SPEED_BOOST) itemChar = "S";
-            if (game->powerUps[i].type == SHIELD)       itemChar = "D";
-            if (game->powerUps[i].type == ATTACK_BOOST) itemChar = "A";
-            DrawTextEx(font, itemChar, (Vector2){ pos.x - 4.0f, pos.y - 7.0f }, 14.0f, 1.0f, BLACK);
-        }
-    }
-
-    // B. Desenha os Inimigos
-    for (int i = 0; i < MAX_ENEMIES; i++)
-    {
-        if (game->enemies[i].active)
-        {
-            Enemy *enemy = &game->enemies[i];
-            
-            float destSize = (enemy->tier == TIER_3_BOSS) ? 140.0f : 45.0f;
-            Vector2 renderPos = enemy->position;
-            
-            float squashFactor = 1.0f;
-            float scale = 1.0f;
-            float rotation = 0.0f;
-            float alpha = 1.0f;
-            
-            if (enemy->state == HURT)
-            {
-                // Efeito de tremor (shake) baseado no tempo restante de stun
-                float intensity = (enemy->cooldownTimer / 0.25f) * 6.0f;
-                renderPos.x += GetRandomValue(-intensity, intensity);
-                renderPos.y += GetRandomValue(-intensity, intensity);
-                
-                // Squash Factor: oscilação rápida ao ser atingido (pulsação)
-                float t = enemy->cooldownTimer / 0.25f;
-                squashFactor = 1.0f + sinf(t * PI * 4.0f) * 0.18f;
-            }
-            else if (enemy->state == DEATH)
-            {
-                float deathPct = enemy->cooldownTimer / 0.5f; // vai de 1.0 a 0.0
-                if (deathPct < 0.0f) deathPct = 0.0f;
-                if (deathPct > 1.0f) deathPct = 1.0f;
-                
-                // Encolhe o tamanho gradualmente
-                scale = deathPct;
-                
-                // Gira em torno do próprio eixo
-                rotation = (1.0f - deathPct) * 360.0f;
-                
-                // Desvanece (fade out)
-                alpha = deathPct;
-            }
-            
-            float currentDestSize = destSize * scale;
-            
-            DrawEnemyModel(enemy, renderPos, currentDestSize, rotation, squashFactor, alpha);
-            
-            // Barra de HP individual acima do inimigo (apenas se vivo/não em animação de morte)
-            if (enemy->state != DEATH)
-            {
-                float size = (enemy->tier == TIER_3_BOSS) ? 400.0f : 60.0f;
-                float barW = size * 1.1f;
-                float barH = 6.0f;
-                float yOffset = (enemy->tier == TIER_3_BOSS) ? 200.0f : 50.0f;
-                Rectangle rHPBg = { enemy->position.x - barW / 2.0f, enemy->position.y - yOffset, barW, barH };
-                DrawRectangleRec(rHPBg, Fade(RED, 0.4f));
-                
-                float enemyHpPercent = (float)enemy->hp / enemy->maxHp;
-                if (enemyHpPercent > 0.0f)
-                {
-                    Rectangle rHPFill = { rHPBg.x, rHPBg.y, barW * enemyHpPercent, barH };
-                    DrawRectangleRec(rHPFill, GREEN);
-                }
-                DrawRectangleLinesEx(rHPBg, 1.0f, BLACK);
-            }
-        }
-    }
-
-    // Desenha Projéteis
-    for (int i = 0; i < MAX_PROJECTILES; i++)
-    {
-        if (game->projectiles[i].active)
-        {
-            Projectile *p = &game->projectiles[i];
-            float srcSize = 12.0f;
-            Color pCol = YELLOW;
-            if (p->type == PROJ_ACID_ARC) pCol = LIME;
-            else if (p->type == PROJ_VOID_BOLT) pCol = MAGENTA;
-            else if (p->type == PROJ_BOSS_BULLET) pCol = RED;
-            
-            DrawCircle(p->position.x, p->position.y, srcSize, pCol);
-            DrawCircleLines(p->position.x, p->position.y, srcSize, WHITE);
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // 4. DESENHA O JOGADOR
-    // ------------------------------------------------------------------------
-    Vector2 pPos = game->player.position;
-    float playerSize = 40.0f;
-
-    DrawPlayerHero(game, pPos, playerSize);
-
-    // E. Desenha a animação de ataque (Slash circular crescendo)
-    if (game->slashAnimTimer > 0.0f)
-    {
-        // Progresso do slash: de 0.0 a 1.0
-        float t = 1.0f - (game->slashAnimTimer / 0.22f);
-        float currentRadius = t * game->slashAnimRadius;
-        
-        // Efeito de anel em expansão
-        DrawCircleLines(game->slashAnimPos.x, game->slashAnimPos.y, currentRadius, Fade(WHITE, (1.0f - t) * 0.9f));
-        DrawCircleLines(game->slashAnimPos.x, game->slashAnimPos.y, currentRadius - 8.0f, Fade(SKYBLUE, (1.0f - t) * 0.7f));
-        DrawCircle(game->slashAnimPos.x, game->slashAnimPos.y, currentRadius, Fade(SKYBLUE, (1.0f - t) * 0.15f));
-    }
-
-    // F. Desenha as partículas ativas do mundo
-    for (int i = 0; i < MAX_PARTICLES; i++)
-    {
-        if (game->particles[i].active)
-        {
-            float lifePercent = game->particles[i].lifeTime / game->particles[i].maxLifeTime;
-            DrawCircleV(
-                game->particles[i].position,
-                game->particles[i].size * (0.3f + 0.7f * lifePercent),
-                Fade(game->particles[i].color, lifePercent)
-            );
-        }
-    }
-
-    EndMode2D();
-
-    // ------------------------------------------------------------------------
-    // 2. RENDEREIZA A INTERFACE FIXA (HUD DO JOGADOR)
-    // ------------------------------------------------------------------------
-    if (drawHUD)
-    {
-        DrawHUD(game, font);
-    }
-}
-
-// ============================================================================
-// 7. TELA: TUTORIAL — INTERIOR DA SERINGA DE VACINA
-// ============================================================================
-void DrawTelaTutorial(GameState *game, Font font)
-{
-    // -------------------------------------------------------------------------
-    // A. RENDERIZA O MUNDO DO TUTORIAL (INTERIOR DA SERINGA) COM CÂMERA 2D
-    // -------------------------------------------------------------------------
-    // Fundo branco-acinzentado médico (interior de seringa plástica)
-    ClearBackground((Color){ 200, 220, 230, 255 });
-
-    BeginMode2D(game->camera);
-
-    // Chama a renderização do mapa separado da Seringa
-    DrawMapSeringa(font, game->tutorialStep, (float)GetTime());
-
-    // -------------------------------------------------------------------------
-    // B. DESENHA O ANTICORPO (JOGADOR)
-    // -------------------------------------------------------------------------
-    Vector2 pPos = game->player.position;
-    float ps = 38.0f;
-    
-    DrawPlayerHero(game, pPos, ps);
-
-    // Animação de slash se existir
-    if (game->slashAnimTimer > 0.0f)
-    {
-        float t = 1.0f - (game->slashAnimTimer / 0.22f);
-        float cr = t * game->slashAnimRadius;
-        DrawCircleLines(game->slashAnimPos.x, game->slashAnimPos.y, cr, Fade(WHITE, (1.0f - t) * 0.9f));
-        DrawCircle(game->slashAnimPos.x, game->slashAnimPos.y, cr, Fade(THEME_COLOR_MAIN, (1.0f - t) * 0.15f));
-    }
-
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    // C. DESENHA A BACTÉRIA DO TUTORIAL (PASSO 1)
-    // -------------------------------------------------------------------------
-    for (int i = 0; i < MAX_ENEMIES; i++)
-    {
-        if (game->enemies[i].active && game->enemies[i].isTutorialEnemy)
-        {
-            Enemy *e = &game->enemies[i];
-            float es = 32.0f;
-            
-            Vector2 renderPos = e->position;
-            float squashX = 1.0f;
-            float squashY = 1.0f;
-            float scale = 1.0f;
-            float rotationAngle = 0.0f;
-            float alpha = 1.0f;
-            
-            if (e->state == HURT)
-            {
-                // Tremer (shake) baseado no tempo de stun
-                float intensity = (e->cooldownTimer / 0.25f) * 6.0f;
-                renderPos.x += GetRandomValue(-intensity, intensity);
-                renderPos.y += GetRandomValue(-intensity, intensity);
-                
-                // Squash/Stretch oscilante
-                float t = e->cooldownTimer / 0.25f;
-                squashX = 1.0f + sinf(t * PI * 4.0f) * 0.15f;
-                squashY = 1.0f - sinf(t * PI * 4.0f) * 0.15f;
-            }
-            else if (e->state == DEATH)
-            {
-                float deathPct = e->cooldownTimer / 0.5f;
-                if (deathPct < 0.0f) deathPct = 0.0f;
-                if (deathPct > 1.0f) deathPct = 1.0f;
-                
-                scale = deathPct;
-                rotationAngle = (1.0f - deathPct) * PI * 2.0f; // rotação em radianos
-                alpha = deathPct;
-            }
-            
-            float currentEs = es * scale;
-            
-            // Bactéria enfraquecida: círculo verde com "flagelo" simulado
-            Color bactCol = (e->state == HURT) ? WHITE : (Color){ 50, 200, 80, 255 };
-            Color bactLineCol = (Color){ 20, 140, 50, 255 };
-            
-            bactCol = Fade(bactCol, alpha);
-            bactLineCol = Fade(bactLineCol, alpha);
-            
-            // Desenha corpo elíptico para suportar o squash/stretch
-            DrawEllipse(renderPos.x, renderPos.y, currentEs * squashX, currentEs * squashY, bactCol);
-            DrawEllipseLines(renderPos.x, renderPos.y, currentEs * squashX, currentEs * squashY, bactLineCol);
-            
-            // Pequenos "flagelos" representando mobilidade bacteriana, rotacionados dinamicamente no espaço 2D
-            float c = cosf(rotationAngle);
-            float s = sinf(rotationAngle);
-            
-            // Flagelo esquerdo (originalmente de (-es, 0) para (-es - 15, 10))
-            Vector2 f1Start = { -currentEs * squashX * c, -currentEs * squashX * s };
-            Vector2 f1End   = { (-currentEs * squashX - 15.0f) * c - 10.0f * s, (-currentEs * squashX - 15.0f) * s + 10.0f * c };
-            
-            // Flagelo direito (originalmente de (es, 0) para (es + 15, -10))
-            Vector2 f2Start = { currentEs * squashX * c, currentEs * squashX * s };
-            Vector2 f2End   = { (currentEs * squashX + 15.0f) * c - (-10.0f) * s, (currentEs * squashX + 15.0f) * s + (-10.0f) * c };
-            
-            DrawLineV(Vector2Add(renderPos, f1Start), Vector2Add(renderPos, f1End), bactLineCol);
-            DrawLineV(Vector2Add(renderPos, f2Start), Vector2Add(renderPos, f2End), bactLineCol);
-            
-            // Barra de HP da bactéria (apenas se não estiver morrendo)
-            if (e->state != DEATH)
-            {
-                float barW = 70.0f;
-                DrawRectangle(e->position.x - barW/2, e->position.y - es - 14, barW, 8, Fade(RED, 0.5f));
-                float hpPct = (float)e->hp / e->maxHp;
-                DrawRectangle(e->position.x - barW/2, e->position.y - es - 14, barW * hpPct, 8, (Color){ 50, 200, 80, 255 });
-                DrawRectangleLinesEx((Rectangle){ e->position.x - barW/2, e->position.y - es - 14, barW, 8 }, 1.0f, BLACK);
-            }
-        }
-    }
-
-    // Partículas
-    for (int i = 0; i < MAX_PARTICLES; i++)
-    {
-        if (game->particles[i].active)
-        {
-            float lp = game->particles[i].lifeTime / game->particles[i].maxLifeTime;
-            DrawCircleV(game->particles[i].position, game->particles[i].size * (0.3f + 0.7f * lp), Fade(game->particles[i].color, lp));
-        }
-    }
-
-    // Desenha Projéteis do Tutorial
-    for (int i = 0; i < MAX_PROJECTILES; i++)
-    {
-        if (game->projectiles[i].active)
-        {
-            Vector2 pPos = game->projectiles[i].position;
-            DrawCircleV(pPos, 14.0f, Fade((Color){ 50, 200, 80, 255 }, 0.22f));
-            DrawCircleV(pPos, 8.0f, (Color){ 50, 200, 80, 255 });
-            DrawCircleV(pPos, 4.0f, WHITE);
-        }
-    }
-
-    // Desenha Power-ups do Tutorial (ampolas de vacina / esferas de treino)
-    for (int i = 0; i < MAX_POWERUPS; i++)
-    {
-        if (game->powerUps[i].active)
-        {
-            float pulse = 24.0f + sinf(game->powerUps[i].pulseTimer * 6.0f) * 4.0f;
-            Vector2 pos = game->powerUps[i].position;
-
-            // Cores biológicas e brilhos com base no tipo
-            Color itemCol = YELLOW;
-            const char *itemChar = "P";
-            if (game->powerUps[i].type == HP_RECOVERY) { itemCol = (Color){ 50, 220, 100, 255 }; itemChar = "H"; }
-            else if (game->powerUps[i].type == SPEED_BOOST) { itemCol = THEME_COLOR_MAIN; itemChar = "S"; }
-            else if (game->powerUps[i].type == SHIELD) { itemCol = (Color){ 255, 180, 0, 255 }; itemChar = "D"; }
-            else if (game->powerUps[i].type == ATTACK_BOOST) { itemCol = (Color){ 255, 60, 100, 255 }; itemChar = "A"; }
-
-            DrawCircleV(pos, pulse + 6.0f, Fade(itemCol, 0.22f));
-            DrawRectangleRec((Rectangle){ pos.x - pulse/2.0f, pos.y - pulse/2.0f, pulse, pulse }, itemCol);
-            DrawRectangleLinesEx((Rectangle){ pos.x - pulse/2.0f, pos.y - pulse/2.0f, pulse, pulse }, 2.0f, WHITE);
-            
-            DrawTextEx(font, itemChar, (Vector2){ pos.x - 4.0f, pos.y - 7.0f }, 14.0f, 1.0f, BLACK);
-        }
-    }
-
-    EndMode2D();
-
-    // -------------------------------------------------------------------------
-    // D. HUD DO TUTORIAL: CAIXA DE DIÁLOGO (SOBREPOSTA, SEM CÂMERA)
-    // -------------------------------------------------------------------------
-
-    // Indicador de passo (canto superior direito)
-    char stepStr[32];
-    sprintf(stepStr, "PASSO %d/3", game->tutorialStep + 1);
-    DrawSciFiBox((Rectangle){ 1050, 20, 210, 45 }, (Color){ 0, 200, 100, 255 });
-    Vector2 stepSz = MeasureTextEx(font, stepStr, 18.0f, 1.0f);
-    DrawTextEx(font, stepStr, (Vector2){ 1155.0f - stepSz.x / 2.0f, 32.0f }, 18.0f, 1.0f, (Color){ 0, 220, 120, 255 });
-
-    if (game->tutorialDialog.active)
-    {
-        // Painel de diálogo inferior
-        DrawRectangleRounded((Rectangle){ 80, 580, 1120, 120 }, 0.08f, 6, Fade((Color){ 6, 18, 12, 255 }, 0.92f));
-        DrawRectangleRoundedLines((Rectangle){ 80, 580, 1120, 120 }, 0.08f, 6, (Color){ 0, 200, 100, 255 });
-
-        // Ícone de personagem/anticorpo no canto esquerdo do diálogo
-        DrawCircle(120, 640, 22, (Color){ 0, 150, 200, 255 });
-        DrawCircleLines(120, 640, 22, THEME_COLOR_MAIN);
-        DrawTextEx(font, "Ab", (Vector2){ 108, 630 }, 16.0f, 1.0f, WHITE);
-
-        const char *fullL1 = "";
-        const char *fullL2 = "";
-        const char *fullL3 = "";
-        GetTutorialDialogText(game->tutorialStep, game->tutorialDialog.page, &fullL1, &fullL2, &fullL3);
-
-        // Buffers para as linhas a serem desenhadas
-        char l1Draw[128] = { 0 };
-        char l2Draw[128] = { 0 };
-        char l3Draw[128] = { 0 };
-
-        int charLimit = game->tutorialDialog.charShown;
-        int len1 = strlen(fullL1);
-        int len2 = strlen(fullL2);
-        int len3 = strlen(fullL3);
-
-        // Linha 1
-        if (charLimit <= len1)
-        {
-            strncpy(l1Draw, fullL1, charLimit);
-        }
-        else
-        {
-            strcpy(l1Draw, fullL1);
-            int rem = charLimit - len1;
-            // Linha 2
-            if (rem <= len2)
-            {
-                strncpy(l2Draw, fullL2, rem);
-            }
-            else
-            {
-                strcpy(l2Draw, fullL2);
-                int rem2 = rem - len2;
-                // Linha 3
-                if (rem2 <= len3)
-                {
-                    strncpy(l3Draw, fullL3, rem2);
-                }
-                else
-                {
-                    strcpy(l3Draw, fullL3);
-                }
-            }
-        }
-
-        DrawTextEx(font, l1Draw, (Vector2){ 155, 592 }, 16.0f, 1.0f, WHITE);
-        DrawTextEx(font, l2Draw, (Vector2){ 155, 614 }, 16.0f, 1.0f, WHITE);
-        DrawTextEx(font, l3Draw, (Vector2){ 155, 636 }, 16.0f, 1.0f, (Color){ 0, 220, 120, 255 });
-    }
-
-    // HP do jogador (simples, canto superior esquerdo)
-    DrawSciFiBox((Rectangle){ 20, 20, 240, 55 }, (Color){ 0, 200, 100, 255 });
-    DrawTextEx(font, "ANTICORPO", (Vector2){ 30, 27 }, 14.0f, 1.0f, (Color){ 0, 220, 120, 255 });
-    DrawRectangleRounded((Rectangle){ 30, 46, 180, 10 }, 0.5f, 4, (Color){ 30, 10, 10, 255 });
-    float hpPctPlayer = (float)game->player.hp / game->player.maxHp;
-    if (hpPctPlayer > 0.0f)
-        DrawRectangleRounded((Rectangle){ 30, 46, 180.0f * hpPctPlayer, 10 }, 0.5f, 4, (Color){ 0, 220, 120, 255 });
-    char hpBuf[24];
-    sprintf(hpBuf, "%d/%d HP", game->player.hp, game->player.maxHp);
-    Vector2 hpSz = MeasureTextEx(font, hpBuf, 12.0f, 1.0f);
-    DrawTextEx(font, hpBuf, (Vector2){ 220.0f - hpSz.x, 44.0f }, 12.0f, 1.0f, WHITE);
 }
 
 // ============================================================================
@@ -1360,8 +710,8 @@ void DrawTelaLoading(GameState *game, Font font)
     {
         if (game->particles[i].active)
         {
-            DrawCircleV(game->particles[i].position, game->particles[i].size,
-                        Fade(game->particles[i].color, game->particles[i].lifeTime / game->particles[i].maxLifeTime * 0.15f));
+            float s = game->particles[i].size;
+            DrawRectangleV((Vector2){ game->particles[i].position.x - s, game->particles[i].position.y - s }, (Vector2){ s * 2.0f, s * 2.0f }, Fade(game->particles[i].color, game->particles[i].lifeTime / game->particles[i].maxLifeTime * 0.15f));
         }
     }
 

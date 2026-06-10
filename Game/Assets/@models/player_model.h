@@ -5,6 +5,6 @@
 #include "../../include/game.h"
 
 // Função para desenhar o modelo do jogador
-void DrawPlayerModel(Player *player, float size, Color tint, float time);
+void DrawPlayerModel(Player *player, float size, Color tint, float time, float attackAnimTimer);
 
 #endif // PLAYER_MODEL_H

@@ -51,8 +51,8 @@ int GetEnemiesInRadius(GameState *game, Vector2 center, float radius, int *resul
             GridCell *cell = &enemyGrid[x][y];
             for (int i = 0; i < cell->count; i++) {
                 int idx = cell->enemyIndices[i];
-                float dist = Vector2Distance(center, game->enemies[idx].position);
-                if (dist <= radius) {
+                float distSqr = Vector2DistanceSqr(center, game->enemies[idx].position);
+                if (distSqr <= radius * radius) {
                     resultIndices[totalCount++] = idx;
                 }
             }

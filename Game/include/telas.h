@@ -8,6 +8,8 @@
 // Desenha um botão UIButton com o estilo Premium da interface
 void DrawButton(UIButton botao, Font font, bool enabled);
 
+void DrawSciFiBox(Rectangle r, Color col);
+
 // Funções de desenho das respectivas telas
 void DrawHUD(GameState *game, Font font);
 void DrawTelaMenu(GameState *game, Font font, float time);

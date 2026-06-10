@@ -15,10 +15,13 @@ void StartNextWave(GameState *game);
 void UpdateGameplay(GameState *game, float delta);
 
 // Executa o ataque em área do jogador (Space / Clique)
-void PlayerAttack(GameState *game);
+void PlayerAttack(GameState *game, Vector2 worldMousePos);
 
 // Cria uma partícula no mundo com parâmetros definidos
+void InitParticlePool(GameState *game);
+void FreeParticle(GameState *game, int idx);
 void SpawnParticle(GameState *game, Vector2 position, Vector2 velocity, Color color, float size, float lifeTime);
+void SpawnParticleExplosion(GameState *game, Vector2 pos, Color col, int count, float minSpeed, float maxSpeed, float size, float life);
 
 // Spawna um power-up em uma posição específica (por exemplo, após derrotar um inimigo)
 void SpawnPowerUpAt(GameState *game, Vector2 position, int type);

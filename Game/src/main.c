@@ -5,6 +5,7 @@
 #include "../include/telas.h"
 #include "../include/input_controller.h"
 #include "../include/asset_manager.h"
+#include "logic/fsm.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +15,14 @@ float g_scale = 1.0f;
 Vector2 g_mouseOffset = { 0.0f, 0.0f };
 Vector2 g_virtualMouse = { 0.0f, 0.0f };
 Font g_gameFont;
+
+// FSM state variables exported to fsm.c
+Texture2D slotTextures[3] = { 0 };
+bool slotTexturesLoaded[3] = { false };
+GameScreen loadSelectBackScreen = SCREEN_MENU;
+GameScreen settingsBackScreen = SCREEN_MENU;
+Image screenshotTemp = { 0 };
+bool hasScreenshotTemp = false;
 
 int main(void)
 {
@@ -35,19 +44,12 @@ int main(void)
     game.masterVolume = 1.0f; // Default volume
     SetMasterVolume(game.masterVolume);
     
-    // Variaveis de controle dos slots de save, texturas e screenshots
-    Texture2D slotTextures[3] = { 0 };
-    bool slotTexturesLoaded[3] = { false };
     GameScreen previousScreen = SCREEN_MENU;
-    GameScreen loadSelectBackScreen = SCREEN_MENU;
-    GameScreen settingsBackScreen = SCREEN_MENU;
-    Image screenshotTemp = { 0 };
-    bool hasScreenshotTemp = false;
 
     // Inicialização do Áudio e Carregamento do Tema (DeepVoid.mp3)
     // AudioDevice é iniciado no asset_manager
     Music musicA = g_assets.musicMain;
-    Music musicB = LoadMusicStream("Assets/Musica/DeepVoid.mp3");
+    Music musicB = g_assets.musicB;
     bool streamAPlaying = true;
     bool crossfadeActive = false;
     bool musicLoaded = (musicA.frameCount > 0) && (musicB.frameCount > 0);
@@ -66,7 +68,7 @@ int main(void)
     SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
 
     // Loop de jogo principal
-    while (!WindowShouldClose())
+    while (!WindowShouldClose() && !game.shouldClose)
     {
         // Atualiza a música de fundo com Crossfade de 12 segundos
         if (musicLoaded)
@@ -162,149 +164,30 @@ int main(void)
         // --------------------------------------------------------------------
         // B. ATUALIZAÇÃO DA LÓGICA CONFORME A TELA ATUAL
         // --------------------------------------------------------------------
-        switch (game.currentScreen)
+        UpdateStateMachine(&game);
+        
+        // CUIDADO: o main ainda precisa lidar com KEY_F5 (quicksave)
+        if (game.currentScreen == SCREEN_GAMEPLAY && IsKeyPressed(KEY_F5))
         {
-            case SCREEN_MENU:
-                if (UpdateButtonsMenu(&game, g_virtualMouse))
-                {
-                    // Se clicou no botão de SAIR, encerra o loop principal
-                    goto finalizacao;
-                }
-                break;
+            // Garante renderização da gameplay limpa antes de capturar
+            BeginTextureMode(target);
+            ClearBackground(BLACK);
+            DrawTelaGameplay(&game, g_gameFont, false);
+            EndTextureMode();
 
-            case SCREEN_TUTORIAL:
-                if (IsKeyPressed(KEY_ESCAPE))
-                {
-                    // ESC no tutorial abre a tela de pausa
-                    game.currentScreen = SCREEN_PAUSE;
-                }
-                else
-                {
-                    UpdateTutorial(&game, GetFrameTime());
-                }
-                break;
-
-            case SCREEN_LOADING:
-                UpdateTelaLoading(&game, GetFrameTime());
-                break;
-
-            case SCREEN_QUIZ:
-                UpdateTelaQuiz(&game, g_virtualMouse);
-                break;
-
-            case SCREEN_UPGRADE:
-                UpdateTelaUpgrade(&game, g_virtualMouse);
-                break;
-
-
-            case SCREEN_CONTROLS:
-                UpdateButtonsControles(&game, g_virtualMouse);
-                break;
-
-            case SCREEN_SETTINGS:
-                UpdateButtonsSettings(&game, g_virtualMouse, settingsBackScreen);
-                SetMasterVolume(game.masterVolume);
-                break;
-
-            case SCREEN_GAMEPLAY:
-                if (IsKeyPressed(KEY_ESCAPE))
-                {
-                    game.currentScreen = SCREEN_PAUSE;
-                }
-                else if (IsKeyPressed(KEY_F5))
-                {
-                    // Garante renderização da gameplay limpa antes de capturar
-                    BeginTextureMode(target);
-                    ClearBackground(BLACK);
-                    DrawTelaGameplay(&game, g_gameFont, false);
-                    EndTextureMode();
-
-                    // Quicksave para o Slot 1 (Padrão)
-                    SalvarJogoSlot(&game, 1);
-                    
-                    // Captura e exporta screenshot limpa
-                    Image quicksaveImg = LoadImageFromTexture(target.texture);
-                    ImageFlipVertical(&quicksaveImg);
-                    ImageResize(&quicksaveImg, 280, 158);
-                    ExportImage(quicksaveImg, "Saves/screenshot_slot_1.png");
-                    UnloadImage(quicksaveImg);
-                    
-                    game.saveLoaded = true;
-                    strcpy(game.notificationMsg, "GAME SAVED!");
-                    game.timeElapsed = 0.0f;
-                }
-                else if (IsKeyPressed(KEY_F9))
-                {
-                    // Quickload do Slot 1 se existir
-                    if (FileExists("Saves/save_slot_1.txt"))
-                    {
-                        game.loadSlot = 1;
-                        RequestLoadingScreen(&game, LOAD_TO_GAMEPLAY, 2.0f);
-                    }
-                }
-                else
-                {
-                    UpdateGameplay(&game, GetFrameTime());
-                }
-                break;
-
-            case SCREEN_PAUSE:
-                if (IsKeyPressed(KEY_ESCAPE))
-                {
-                    game.currentScreen = game.inTutorial ? SCREEN_TUTORIAL : SCREEN_GAMEPLAY;
-                }
-                else
-                {
-                    UpdateButtonsPause(&game, g_virtualMouse);
-                }
-                break;
-
-            case SCREEN_SAVE_SELECT:
-                {
-                    int slotSelected = UpdateButtonsSaveSelect(&game, g_virtualMouse, slotTextures, slotTexturesLoaded);
-                    if (slotSelected > 0)
-                    {
-                        SalvarJogoSlot(&game, slotSelected);
-                        if (hasScreenshotTemp)
-                        {
-                            char path[64];
-                            sprintf(path, "Saves/screenshot_slot_%d.png", slotSelected);
-                            ExportImage(screenshotTemp, path);
-                        }
-                        game.currentScreen = SCREEN_GAMEPLAY;
-                        game.saveLoaded = true;
-                        strcpy(game.notificationMsg, "GAME SAVED!");
-                        game.timeElapsed = 0.0f;
-                    }
-                    else if (slotSelected == -1)
-                    {
-                        game.currentScreen = SCREEN_PAUSE;
-                    }
-                }
-                break;
-
-            case SCREEN_LOAD_SELECT:
-                {
-                    int slotSelected = UpdateButtonsLoadSelect(&game, g_virtualMouse, slotTextures, slotTexturesLoaded);
-                    if (slotSelected > 0)
-                    {
-                        game.loadSlot = slotSelected;
-                        RequestLoadingScreen(&game, LOAD_TO_GAMEPLAY, 2.0f);
-                    }
-                    else if (slotSelected == -1)
-                    {
-                        game.currentScreen = loadSelectBackScreen;
-                    }
-                }
-                break;
-
-            case SCREEN_GAMEOVER:
-                UpdateButtonsGameOver(&game, g_virtualMouse);
-                break;
-
-            case SCREEN_VICTORY:
-                UpdateButtonsVitoria(&game, g_virtualMouse);
-                break;
+            // Quicksave para o Slot 1 (Padrão)
+            SalvarJogoSlot(&game, 1);
+            
+            // Captura e exporta screenshot limpa
+            Image quicksaveImg = LoadImageFromTexture(target.texture);
+            ImageFlipVertical(&quicksaveImg);
+            ImageResize(&quicksaveImg, 280, 158);
+            ExportImage(quicksaveImg, "Saves/screenshot_slot_1.png");
+            UnloadImage(quicksaveImg);
+            
+            game.saveLoaded = true;
+            strcpy(game.notificationMsg, "GAME SAVED!");
+            game.timeElapsed = 0.0f;
         }
 
         // --------------------------------------------------------------------
@@ -481,77 +364,15 @@ int main(void)
 
         BeginMode2D(hudCamera);
 
-        switch (game.currentScreen)
-        {
-            case SCREEN_MENU:
-                DrawTelaMenu(&game, g_gameFont, (float)GetTime());
-                break;
-
-            case SCREEN_TUTORIAL:
-                DrawTelaTutorial(&game, g_gameFont);
-                break;
-
-            case SCREEN_LOADING:
-                DrawTelaLoading(&game, g_gameFont);
-                break;
-
-            case SCREEN_QUIZ:
-                // Escurece o fundo
-                DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.8f));
-                DrawTelaQuiz(&game, g_gameFont);
-                break;
-
-            case SCREEN_UPGRADE:
-                // Escurece o fundo
-                DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.8f));
-                DrawTelaUpgrade(&game, g_gameFont);
-                break;
-
-
-            case SCREEN_CONTROLS:
-                DrawTelaControles(&game, g_gameFont);
-                break;
-
-            case SCREEN_SETTINGS:
-                DrawTelaSettings(&game, g_gameFont);
-                break;
-
-            case SCREEN_GAMEPLAY:
-                DrawHUD(&game, g_gameFont);
-                break;
-
-            case SCREEN_PAUSE:
-                DrawTelaPausa(&game, g_gameFont);
-                break;
-
-            case SCREEN_SAVE_SELECT:
-                DrawTelaSaveSelect(&game, g_gameFont, g_virtualMouse, slotTextures, slotTexturesLoaded);
-                break;
-
-            case SCREEN_LOAD_SELECT:
-                DrawTelaLoadSelect(&game, g_gameFont, g_virtualMouse, slotTextures, slotTexturesLoaded);
-                break;
-
-            case SCREEN_GAMEOVER:
-                DrawTelaGameOver(&game, g_gameFont);
-                break;
-
-            case SCREEN_VICTORY:
-                DrawTelaVitoria(&game, g_gameFont);
-                break;
-        }
+        DrawStateMachine(&game);
 
         EndMode2D();
 
         EndDrawing();
     }
 
-finalizacao:
     // Limpeza e encerramento de áudio e texturas
-    if (musicLoaded)
-    {
-        UnloadMusicStream(musicB); // musicA é descarregada no asset_manager
-    }
+    // As músicas são descarregadas no asset_manager
 
     UnloadRenderTexture(target);
     UnloadGameAssets();

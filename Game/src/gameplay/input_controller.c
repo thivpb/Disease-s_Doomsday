@@ -45,7 +45,7 @@ bool UpdateButtonsMenu(GameState *game, Vector2 mouse)
             game->particles[i].position.y += game->particles[i].velocity.y * GetFrameTime();
             game->particles[i].position.x += game->particles[i].velocity.x * GetFrameTime();
             game->particles[i].lifeTime -= GetFrameTime();
-            if (game->particles[i].lifeTime <= 0.0f) game->particles[i].active = false;
+            if (game->particles[i].lifeTime <= 0.0f) FreeParticle(game, i);
         }
     }
 
@@ -189,6 +189,8 @@ void UpdateButtonsControles(GameState *game, Vector2 mouse)
 
 void UpdateButtonsPause(GameState *game, Vector2 mouse)
 {
+    if (game->uiAnimTimer < 0.5f) return;
+
     for (int i = 0; i < 5; i++)
     {
         UpdateBtnState(&pauseButtons[i], mouse);
@@ -262,7 +264,7 @@ void UpdateButtonsVitoria(GameState *game, Vector2 mouse)
             game->particles[i].position.y += game->particles[i].velocity.y * GetFrameTime();
             game->particles[i].position.x += game->particles[i].velocity.x * GetFrameTime();
             game->particles[i].lifeTime -= GetFrameTime();
-            if (game->particles[i].lifeTime <= 0.0f) game->particles[i].active = false;
+            if (game->particles[i].lifeTime <= 0.0f) FreeParticle(game, i);
         }
     }
 
