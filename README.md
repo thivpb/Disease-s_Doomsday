@@ -1,7 +1,9 @@
 # 🦠 Disease's Doomsday
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 > **Jogo educativo de saúde pública desenvolvido para a disciplina de Projeto Integrador**
-> Plataforma: Desktop (Windows10/11) · Linguagem: C + Raylib · Gênero: RPG de Ação 2D Top-Down
+> Plataforma: Desktop (Windows / Linux / macOS) · Linguagem: C + Raylib · Gênero: RPG de Ação 2D Top-Down
 
 ---
 
