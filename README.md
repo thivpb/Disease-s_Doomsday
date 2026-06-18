@@ -186,37 +186,89 @@ Disease's_Doomsday/
 
 ## 🚀 Como Compilar e Rodar
 
-### Windows
+### 🪟 Windows
 
 Requer Raylib instalada em `C:\raylib` (instalador MinGW oficial).
 
+**1. Instale o Raylib:**
+- Acesse [raylib.com](https://www.raylib.com/) e baixe o instalador `raylib_installer_vX.X.X.mingw.exe`
+- Execute e mantenha o caminho padrão `C:\raylib`
+
+**2. Compile e execute** (dentro da pasta `Game/`):
+
 ```bat
-cd Game
 compilar.bat
 rpg_game.exe
 ```
 
-### Linux / macOS
+Ou dê dois cliques no `rpg_game.exe` gerado.
+
+**3. Integração com VS Code (opcional):**
+
+Crie `.vscode/c_cpp_properties.json` dentro de `Game/` com:
+
+```json
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/raylib/raylib/src",
+                "C:/raylib/w64devkit/include"
+            ],
+            "compilerPath": "C:/raylib/w64devkit/bin/gcc.exe",
+            "cStandard": "c11",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}
+```
+
+E `.vscode/tasks.json` para compilar com `Ctrl+Shift+B`:
+
+```json
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compilar Jogo",
+            "type": "shell",
+            "command": ".\\compilar.bat",
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        }
+    ]
+}
+```
+
+### 🐧🍎 Linux / macOS
+
+**1. Instale o Raylib:**
+- **Ubuntu/Debian:** `sudo apt install libraylib-dev`
+- **macOS (Homebrew):** `brew install raylib`
+
+**2. Compile e execute** (dentro da pasta `Game/`):
 
 ```bash
-cd Game
-make        # gera ./rpg_game
+make            # gera ./rpg_game
 ./rpg_game
-# ou:
+# ou simplesmente:
 ./build.sh
 ```
 
-> Guia detalhado de instalação: **[COMO_RODAR.md](COMO_RODAR.md)**
+> ⚠️ Execute o jogo **a partir da pasta `Game/`** — os caminhos relativos de `Assets/` e `Saves/` dependem disso.
 
 ---
 
 ## 📋 Artefatos Documentados
 
-| Documento                      | Descrição                                             |
-| ------------------------------ | ----------------------------------------------------- |
-| [README.md](README.md)         | Visão geral do projeto, arquitetura e instruções      |
+| Documento | Descrição |
+|---|---|
+| [README.md](README.md) | Visão geral do projeto, arquitetura, instruções de build e instalação |
 | [elicitacao.md](elicitacao.md) | 5W2H, público-alvo, stakeholders, custo computacional |
-| [COMO_RODAR.md](COMO_RODAR.md) | Guia completo de instalação e build                   |
+| [LICENSE](LICENSE) | Licença MIT |
 
 ---
 
