@@ -4,7 +4,7 @@
 
 <br/>
 
-### 🧬 *Você é um anticorpo. Eles são a pandemia. Só um sobrevive.*
+### 🧬 _Você é um anticorpo. Eles são a pandemia. Só um sobrevive._
 
 <br/>
 
@@ -58,20 +58,20 @@ O projeto une **entretenimento e aprendizagem ativa**, traduzindo conteúdos de 
 
 ## 🦠 OS INIMIGOS — Doenças Reais, Mecânicas Reais
 
-| Patógeno | Tipo | Comportamento em Jogo | Conceito Real |
-|---|---|---|---|
-| 🦠 **Superbactéria KPC** | CHEFE Mundo 1 | 3 fases, escolta de lacaios, projéteis radiais | Resistência antimicrobiana, infecções hospitalares |
-| 🦟 **Dengue** *(Aedes aegypti)* | Atirador | Rápido, zigue-zague, foge do jogador | Transmissão vetorial, eliminação de criadouros |
-| 😷 **SARS-CoV-2** | Corpo a corpo | Equilibrado, ataque em grupo | Transmissão respiratória, protocolos de isolamento |
-| 🔬 **Mycobacterium tuberculosis** | Atirador Pesado | Lento e extremamente resistente | TB pulmonar, resistência a múltiplos fármacos |
-| 🩸 **Trypanosoma cruzi** | Speedrunner | Veloz, frágil, invoca vetores aliados | Doença de Chagas, transmissão por triatomíneo |
-| 🧬 **Vírus Boss** | CHEFE Mundo 2 | Capsídeo reforçado, múltiplas camadas | Estrutura viral, mecanismos de infecção |
+| Patógeno                          | Tipo            | Comportamento em Jogo                          | Conceito Real                                      |
+| --------------------------------- | --------------- | ---------------------------------------------- | -------------------------------------------------- |
+| 🦠 **Superbactéria KPC**          | CHEFE Mundo 1   | 3 fases, escolta de lacaios, projéteis radiais | Resistência antimicrobiana, infecções hospitalares |
+| 🦟 **Dengue** _(Aedes aegypti)_   | Atirador        | Rápido, zigue-zague, foge do jogador           | Transmissão vetorial, eliminação de criadouros     |
+| 😷 **SARS-CoV-2**                 | Corpo a corpo   | Equilibrado, ataque em grupo                   | Transmissão respiratória, protocolos de isolamento |
+| 🔬 **Mycobacterium tuberculosis** | Atirador Pesado | Lento e extremamente resistente                | TB pulmonar, resistência a múltiplos fármacos      |
+| 🩸 **Trypanosoma cruzi**          | Speedrunner     | Veloz, frágil, invoca vetores aliados          | Doença de Chagas, transmissão por triatomíneo      |
+| 🧬 **Vírus Boss**                 | CHEFE Mundo 2   | Capsídeo reforçado, múltiplas camadas          | Estrutura viral, mecanismos de infecção            |
 
 ---
 
 ## ⚔️ O ARSENAL — Ciência como Arma
 
-> *Cada arma existe por um motivo científico. Não é ficção — é biologia.*
+> _Cada arma existe por um motivo científico. Não é ficção — é biologia._
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -140,13 +140,13 @@ O projeto une **entretenimento e aprendizagem ativa**, traduzindo conteúdos de 
 
 O jogo aborda, de forma **lúdica e cientificamente embasada**, temas centrais de saúde pública:
 
-| Tema | Conteúdo Ensinado |
-|---|---|
-| **Superbactéria KPC** | Resistência antimicrobiana, infecções hospitalares, uso responsável de antibióticos |
-| **Dengue** | Transmissão pelo *Aedes aegypti*, eliminação de criadouros, prevenção no DF/Brasil |
-| **Influenza** | Vacinação, transmissão respiratória, medidas de proteção individual e coletiva |
-| **Pneumonia Bacteriana** | Agentes causadores, ambientes de risco, estratégias de prevenção |
-| **Sistema Imune** | Anticorpos, bacteriófagos, capsídeo viral, papel das citocinas |
+| Tema                     | Conteúdo Ensinado                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| **Superbactéria KPC**    | Resistência antimicrobiana, infecções hospitalares, uso responsável de antibióticos |
+| **Dengue**               | Transmissão pelo _Aedes aegypti_, eliminação de criadouros, prevenção no DF/Brasil  |
+| **Influenza**            | Vacinação, transmissão respiratória, medidas de proteção individual e coletiva      |
+| **Pneumonia Bacteriana** | Agentes causadores, ambientes de risco, estratégias de prevenção                    |
+| **Sistema Imune**        | Anticorpos, bacteriófagos, capsídeo viral, papel das citocinas                      |
 
 ### 🧠 Quiz da Vigilância Epidemiológica
 
@@ -165,16 +165,16 @@ Entre cada onda, o jogador responde perguntas sobre saúde pública. Acertar ren
 
 ## 🕹️ CONTROLES
 
-| Ação | Tecla |
-|---|---|
-| Mover | `W` `A` `S` `D` ou `↑` `↓` `←` `→` |
-| Atacar | **Clique Esquerdo** ou `Espaço` |
-| Trocar Arma | `1` `2` `3` `4` |
-| Usar Poção | `E` |
-| Avançar Diálogo | `Q` ou `Espaço` |
-| Pausar | `Esc` |
-| Salvar | `F5` |
-| Carregar | `F9` |
+| Ação            | Tecla                              |
+| --------------- | ---------------------------------- |
+| Mover           | `W` `A` `S` `D` ou `↑` `↓` `←` `→` |
+| Atacar          | **Clique Esquerdo** ou `Espaço`    |
+| Trocar Arma     | `1` `2` `3` `4`                    |
+| Usar Poção      | `E`                                |
+| Avançar Diálogo | `Q` ou `Espaço`                    |
+| Pausar          | `Esc`                              |
+| Salvar          | `F5`                               |
+| Carregar        | `F9`                               |
 
 ---
 
@@ -220,18 +220,18 @@ Disease's_Doomsday/
 
 ## 🔧 DESTAQUES TÉCNICOS
 
-| Recurso | Implementação |
-|---|---|
-| **Engine** | Raylib — janela redimensionável com *letterbox* 1280×720 |
-| **Arte** | Pipeline procedural com suporte a sprites PNG externos |
-| **Câmera** | Suave (lerp) com *screen shake* em impactos |
-| **Partículas** | Pool de reuso eficiente (sem alocação dinâmica em runtime) |
-| **Shaders** | Efeito biológico + vinheta de vida baixa |
-| **Áudio** | Música em crossfade + SFX contextuais por evento |
-| **IA dos Inimigos** | FSM `IDLE → AGGRO → ATTACK → HURT → DEATH` com flanqueamento |
-| **Save/Load** | 3 slots `.txt` com screenshot de preview, escrita em thread assíncrona |
-| **HUD** | Radar/biossensor · barra de chefe · hotbar · rótulo de órgão/doença |
-| **Colisões** | Grid espacial — O(1) por célula, sem brute-force |
+| Recurso             | Implementação                                                          |
+| ------------------- | ---------------------------------------------------------------------- |
+| **Engine**          | Raylib — janela redimensionável com _letterbox_ 1280×720               |
+| **Arte**            | Pipeline procedural com suporte a sprites PNG externos                 |
+| **Câmera**          | Suave (lerp) com _screen shake_ em impactos                            |
+| **Partículas**      | Pool de reuso eficiente (sem alocação dinâmica em runtime)             |
+| **Shaders**         | Efeito biológico + vinheta de vida baixa                               |
+| **Áudio**           | Música em crossfade + SFX contextuais por evento                       |
+| **IA dos Inimigos** | FSM `IDLE → AGGRO → ATTACK → HURT → DEATH` com flanqueamento           |
+| **Save/Load**       | 3 slots `.txt` com screenshot de preview, escrita em thread assíncrona |
+| **HUD**             | Radar/biossensor · barra de chefe · hotbar · rótulo de órgão/doença    |
+| **Colisões**        | Grid espacial — O(1) por célula, sem brute-force                       |
 
 ---
 
@@ -255,18 +255,20 @@ rpg_game.exe
 
 ```json
 {
-    "configurations": [{
-        "name": "Win32",
-        "includePath": [
-            "${workspaceFolder}/**",
-            "C:/raylib/raylib/src",
-            "C:/raylib/w64devkit/include"
-        ],
-        "compilerPath": "C:/raylib/w64devkit/bin/gcc.exe",
-        "cStandard": "c11",
-        "intelliSenseMode": "windows-gcc-x64"
-    }],
-    "version": 4
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "C:/raylib/raylib/src",
+        "C:/raylib/w64devkit/include"
+      ],
+      "compilerPath": "C:/raylib/w64devkit/bin/gcc.exe",
+      "cStandard": "c11",
+      "intelliSenseMode": "windows-gcc-x64"
+    }
+  ],
+  "version": 4
 }
 ```
 
@@ -275,6 +277,7 @@ rpg_game.exe
 ### 🐧 Linux / 🍎 macOS
 
 **1. Instale o Raylib:**
+
 ```bash
 # Ubuntu/Debian
 sudo apt install libraylib-dev
@@ -284,6 +287,7 @@ brew install raylib
 ```
 
 **2. Compile e execute** (dentro de `Game/`):
+
 ```bash
 make && ./rpg_game
 # ou simplesmente:
@@ -296,11 +300,11 @@ make && ./rpg_game
 
 ## 📋 DOCUMENTAÇÃO
 
-| Documento | Conteúdo |
-|---|---|
-| [`README.md`](README.md) | Visão geral, arquitetura, build e instalação |
+| Documento                        | Conteúdo                                              |
+| -------------------------------- | ----------------------------------------------------- |
+| [`README.md`](README.md)         | Visão geral, arquitetura, build e instalação          |
 | [`elicitacao.md`](elicitacao.md) | 5W2H, público-alvo, stakeholders, custo computacional |
-| [`LICENSE`](LICENSE) | Licença MIT |
+| [`LICENSE`](LICENSE)             | Licença MIT                                           |
 
 ---
 
@@ -313,8 +317,8 @@ Disciplina: **Projeto Integrador** — com enfoque em saúde pública do Distrit
 
 <br/>
 
-*Uso educacional — ao reutilizar ou distribuir, mantenha os créditos dos autores*
-*e da biblioteca [Raylib](https://www.raylib.com/).*
+_Uso educacional — ao reutilizar ou distribuir, mantenha os créditos dos autores_
+_e da biblioteca [Raylib](https://www.raylib.com/)._
 
 <br/>
 
