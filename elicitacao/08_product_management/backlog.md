@@ -1,13 +1,32 @@
 # 8.2 Backlog de Produto
 
-| Prioridade | Item                           | Status          |
-| ---------- | ------------------------------ | --------------- |
-| Alta       | MVP jogável (Mundo 1 completo) | Concluído       |
-| Alta       | Sistema de Quiz educativo      | Concluído       |
-| Alta       | Save/Load multi-slot           | Concluído       |
-| Média      | Mundo 2 — Vírus com capsídeo   | Em andamento    |
-| Média      | Mapa do corpo humano           | Concluído       |
-| Média      | Pipeline de sprites            | Concluído       |
-| Baixa      | Sprites PNG finais             | Em produção     |
-| Baixa      | Versão Web (WebAssembly)       | Planejado       |
-| Baixa      | Ranking online                 | Planejado       |
+| Prioridade | Item | Status |
+| ---------- | ---- | ------ |
+| Alta | MVP jogável (Mundo 1 completo com 5 ondas + boss KPC) | Concluído |
+| Alta | Sistema de Quiz educativo (39 perguntas) | Concluído |
+| Alta | Save/Load multi-slot (3 slots + quicksave F5/F9) | Concluído |
+| Alta | Tutorial na seringa (3 etapas guiadas) | Concluído |
+| Alta | Sistema de dificuldade (Fácil / Médio / Difícil) | Concluído |
+| Média | Mundo 2 — Vírus com 5 tipos, capsídeo e boss Coronavírus | Em andamento |
+| Média | Boss fase 3 — Núcleos de Infecção (4 núcleos, boss invulnerável) | Em andamento |
+| Média | Lâmina Bioelétrica (arma 5, desbloqueável aos 30 kills) | Concluído |
+| Média | Mapa do corpo humano (5657×5657, colisão por máscara de pixel) | Concluído |
+| Média | Pipeline de sprites (player, enemy, weapon procedurais) | Concluído |
+| Média | Cosmetics system (8 slots; 3 skins de personagem; 3 skins de arma) | Concluído |
+| Média | Cutscene de transição entre Mundo 1 e Mundo 2 | Em andamento |
+| Baixa | Sprites PNG finais (substituir render procedural) | Em produção |
+| Baixa | Versão Web via WebAssembly (Emscripten) | Planejado |
+| Baixa | Ranking online com Pontos do SUS | Planejado |
+| Baixa | Modo multiplayer local | Não iniciado |
+
+---
+
+## Testes Automatizados
+
+| Teste | Cobre | Status |
+| ----- | ----- | ------ |
+| `test_rifle_range.c` | Projétil Phage: alcance 1050 px, velocidade 620 px/s | Implementado |
+| `test_virus_waves.c` | Composição de ondas Mundo 2; escalamento de HP/escudo | Implementado |
+| `test_map_body.c` | Colisão do mapa do corpo | Implementado |
+| `test_core_spawns.c` | Posicionamento dos 4 Núcleos de Infecção | Implementado |
+| `test_cosmetics.c` | Sistema de cosméticos (8 slots) | Implementado |
