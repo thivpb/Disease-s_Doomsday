@@ -1507,7 +1507,7 @@ static void DrawTutorialWeaponCard(Font font, Rectangle card, int weapon,
     Rectangle preview = { card.x + 14.0f, card.y + 18.0f, card.width * 0.43f, card.height - 36.0f };
     float bob = sinf(time * 2.0f + weapon) * 6.0f;
     Vector2 pc = { preview.x + preview.width * 0.5f, preview.y + preview.height * 0.5f + bob };
-    DrawCircleGradient((int)pc.x, (int)pc.y, preview.height * 0.54f, Fade(color, 0.22f), BLANK);
+    DrawCircleGradient(pc, preview.height * 0.54f, Fade(color, 0.22f), BLANK);
     DrawCircleLines((int)pc.x, (int)pc.y, preview.height * 0.44f, Fade(color, 0.28f));
     DrawHeldWeaponFramed(weapon, (Rectangle){ preview.x, preview.y + bob, preview.width, preview.height },
                          58.0f, sinf(time * 1.7f + weapon) * 10.0f, primary, secondary);

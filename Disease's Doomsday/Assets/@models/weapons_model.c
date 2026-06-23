@@ -165,7 +165,7 @@ void DrawHeldWeapon(int weapon, Vector2 handPos, float size, float rotationDeg, 
         DrawRectangle((int)(-s*0.08f), (int)(-s*1.65f), (int)(s*0.16f), (int)(s*0.95f), bodyDk);
         DrawRectangle((int)(-s*0.18f), (int)(-s*1.35f), (int)(s*0.36f), (int)(s*0.10f), secondary);
         DrawTriangle((Vector2){ -s*0.13f, -s*1.65f }, (Vector2){ 0, -s*2.02f }, (Vector2){ s*0.13f, -s*1.65f }, (Color){ 220, 230, 238, 255 });
-        DrawCircleGradient(0, (int)(-s*1.72f), s*0.28f, Fade(primary, 0.75f), BLANK);
+        DrawCircleGradient((Vector2){ 0.0f, -s*1.72f }, s*0.28f, Fade(primary, 0.75f), BLANK);
         DrawCircleV((Vector2){ 0, -s*1.72f }, s*0.10f, secondary);
         DrawRectangleRounded((Rectangle){ s*0.20f, -s*0.28f, s*0.18f, s*0.50f }, 0.35f, 6, bodyDk);
     }
@@ -182,7 +182,7 @@ void DrawHeldWeapon(int weapon, Vector2 handPos, float size, float rotationDeg, 
             float yy = -s*(0.98f - i*0.18f);
             DrawLineEx((Vector2){ -s*0.25f, yy }, (Vector2){ s*0.25f, yy - s*0.08f }, s*0.035f, (i % 2) ? secondary : primary);
         }
-        DrawCircleGradient(0, (int)(-s*0.45f), s*0.42f, Fade(primary, 0.55f), BLANK);
+        DrawCircleGradient((Vector2){ 0.0f, -s*0.45f }, s*0.42f, Fade(primary, 0.55f), BLANK);
         DrawCircleV((Vector2){ 0, -s*0.45f }, s*0.20f, bodyDk);
         DrawCircleLines(0, (int)(-s*0.45f), s*0.23f, primary);
         DrawRectangleRounded((Rectangle){ -s*0.24f, -s*1.42f, s*0.48f, s*0.36f }, 0.45f, 8, bodyDk);
@@ -201,7 +201,7 @@ void DrawHeldWeapon(int weapon, Vector2 handPos, float size, float rotationDeg, 
         DrawRectangleRounded((Rectangle){ -s*0.50f, -s*1.05f, s*1.00f, s*1.12f }, 0.28f, 8, body);
         DrawRectangleRoundedLines((Rectangle){ -s*0.50f, -s*1.05f, s*1.00f, s*1.12f }, 0.28f, 8, metal);
         DrawRectangleRounded((Rectangle){ -s*0.34f, -s*0.92f, s*0.68f, s*0.30f }, 0.35f, 6, bodyDk);
-        DrawCircleGradient(0, (int)(-s*1.18f), s*0.72f, Fade(primary, 0.85f), BLANK);
+        DrawCircleGradient((Vector2){ 0.0f, -s*1.18f }, s*0.72f, Fade(primary, 0.85f), BLANK);
         DrawCircleV((Vector2){ 0, -s*1.18f }, s*0.36f, primary);
         DrawCircleV((Vector2){ 0, -s*1.18f }, s*0.18f, secondary);
         DrawCircleLines(0, (int)(-s*1.18f), s*0.48f, secondary);
