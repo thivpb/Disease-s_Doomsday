@@ -1,0 +1,81 @@
+name: Build Windows (.exe)
+
+# A cada push na branch main, compila o jogo no Windows e publica um pacote
+# JOGAVEL (rpg_game.exe + a pasta Assets) na Release "latest". O jogo carrega
+# sprites/musica/fonte de disco em runtime, entao o .exe precisa vir junto com
+# a pasta Assets — por isso distribuimos um .zip, e nao o .exe sozinho.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:        # permite rodar manualmente pelo botao "Run workflow"
+
+permissions:
+  contents: write           # necessario para criar/atualizar a Release
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Instalar MSYS2 + GCC + raylib
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make
+            zip
+          pacboy: >-
+            gcc:p
+            raylib:p
+            pkgconf:p
+
+      - name: Compilar o jogo (.exe Windows)
+        run: |
+          cd "Disease's Doomsday"
+          make win-release
+          ls -lh rpg_game.exe
+
+      - name: Montar pacote jogavel (exe + DLLs + Assets)
+        run: |
+          cd "Disease's Doomsday"
+          rm -rf dist
+          mkdir -p "dist/Doomsday/Saves"
+          cp rpg_game.exe "dist/Doomsday/"
+          ldd rpg_game.exe \
+            | awk '/\/mingw64\/bin\// { print $3 }' \
+            | sort -u \
+            | xargs -r -I{} cp "{}" "dist/Doomsday/"
+          cp -r Assets "dist/Doomsday/"
+          cd dist
+          zip -r -q Doomsday-Windows.zip Doomsday
+          ls -lh Doomsday-Windows.zip
+
+      - name: Guardar o pacote como artefato do build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Doomsday-Windows
+          path: "Disease's Doomsday/dist/Doomsday-Windows.zip"
+          if-no-files-found: error
+
+      - name: Publicar/atualizar a Release "latest"
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Ultima versao (build automatico)
+          body: |
+            Build automatico gerado a partir do ultimo commit em main.
+
+            COMO JOGAR (Windows):
+            1) Baixe o Doomsday-Windows.zip abaixo.
+            2) Extraia a pasta (botao direito -> Extrair tudo).
+            3) Abra a pasta Doomsday e de dois cliques no rpg_game.exe.
+            Nao mova o .exe para fora da pasta: Assets e as DLLs precisam ficar ao lado dele.
+          files: "Disease's Doomsday/dist/Doomsday-Windows.zip"
+          fail_on_unmatched_files: true

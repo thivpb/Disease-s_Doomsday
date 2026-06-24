@@ -270,7 +270,7 @@ static void CosFX(int id, PlayerAnchors a, float size, float t)
     if (id == 1) { // Aura de Anticorpos — ultrapassa a silhueta, pulsa, leve
         float pulse = 0.5f + 0.5f * sinf(t * 2.6f);
         float R = bodyR + size * 0.22f + pulse * size * 0.08f;
-        DrawCircleGradient(bc, R, Fade(COS_C_CYAN, 0.10f + 0.05f * pulse), BLANK);
+        DrawCircleGradient((int)bc.x, (int)bc.y, R, Fade(COS_C_CYAN, 0.10f + 0.05f * pulse), BLANK);
         DrawCircleLines((int)bc.x, (int)bc.y, R, Fade(COS_C_CYAN, 0.26f + 0.12f * pulse));
         DrawCircleLines((int)bc.x, (int)bc.y, R * 0.93f, Fade(COS_C_CYAN, 0.13f));
     } else if (id == 2) { // Hélice de DNA — PRESERVADA (só escala/posição responsiva)
@@ -341,7 +341,11 @@ void DrawPlayerModel(Player *player, float size, Color tint, float time, float a
     // Cores da skin da arma (aplicadas a TODOS os modelos de arma segurada)
     Color swordLiquid = WeaponSkinPrimary(player->weaponSkinId);
     Color swordGlow   = WeaponSkinSecondary(player->weaponSkinId);
-    int   heldWeapon  = (player->equippedWeapon >= 1 && player->equippedWeapon <= 5) ? player->equippedWeapon : 1;
+    // Aceita TODAS as armas (1..WEAPON_COUNT), incluindo as evoluções de "fase 2"
+    // (6 Rifle Vetorial Replicante, 7 Lança-Minas de RNA, 8 BFG Ômega) — cada uma
+    // tem seu próprio modelo em DrawHeldWeapon. Antes o clamp em <=5 fazia a arma
+    // segurada cair de volta para a Espada-Seringa durante o gameplay.
+    int   heldWeapon  = (player->equippedWeapon >= 1 && player->equippedWeapon <= WEAPON_COUNT) ? player->equippedWeapon : 1;
 
     // Pontos de ancoragem para os cosméticos (preenchidos por pose abaixo).
     PlayerAnchors anch = { 0 };
