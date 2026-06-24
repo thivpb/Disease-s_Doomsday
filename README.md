@@ -350,6 +350,13 @@ Disciplina: **Projeto Integrador** — com enfoque em saúde pública do Distrit
 
 <br/>
 
+| [<img src="https://github.com/Felps-26.png" width="90" alt="Filipi Ramos"/>](https://github.com/Felps-26) | [<img src="https://github.com/DevThiVpb.png" width="90" alt="Thiago Vinícius Brito"/>](https://github.com/DevThiVpb) | [<img src="https://github.com/matts006.png" width="90" alt="Mateus Gomes"/>](https://github.com/matts006) |
+| :---: | :---: | :---: |
+| **Filipi Ramos** | **Thiago Vinícius Brito** | **Mateus Gomes** |
+| [@Felps-26](https://github.com/Felps-26) | [@DevThiVpb](https://github.com/DevThiVpb) | [@matts006](https://github.com/matts006) |
+
+<br/>
+
 _Uso educacional — ao reutilizar ou distribuir, mantenha os créditos dos autores_
 _e da biblioteca [Raylib](https://www.raylib.com/)._
 
