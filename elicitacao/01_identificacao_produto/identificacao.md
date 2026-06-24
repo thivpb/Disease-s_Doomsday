@@ -7,8 +7,8 @@
 | **Linguagem**         | C (padrão C11)                                               |
 | **Biblioteca gráfica**| Raylib 5.x (licença zlib, open-source)                       |
 | **Plataforma-alvo**   | Windows / Linux / macOS                                      |
-| **Setor**             | Educação em Saúde Pública                                    |
-| **Tema**              | Vigilância Epidemiológica e prevenção de doenças infecciosas |
+| **Setor**             | Educação em Saúde Pública — recorte no Distrito Federal       |
+| **Tema**              | Vigilância Epidemiológica e prevenção de doenças infecciosas (contexto do DF) |
 | **Repositório**       | Felps-26/Disease-s_Doomsday (GitHub)                         |
 
 ---

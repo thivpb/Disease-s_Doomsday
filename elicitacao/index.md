@@ -10,6 +10,8 @@
 
 **Disease's Doomsday** é um jogo de ação 2D _top-down_ em C + Raylib onde o jogador controla um Anticorpo dentro do corpo humano, eliminando patógenos onda após onda enquanto aprende sobre vigilância epidemiológica e saúde pública.
 
+O recorte da problemática é o **Distrito Federal** — onde os surtos anuais de dengue e a resistência antimicrobiana em hospitais de referência tornam o tema urgente — generalizando-se para o Brasil.
+
 | Métrica                | Valor                          |
 | ---------------------- | ------------------------------ |
 | Resolução              | 1280 × 720 px                  |
