@@ -379,8 +379,15 @@ make && ./rpg_game
 ## 👥 EQUIPE
 
 **Projeto acadêmico desenvolvido em C + Raylib**
-Disciplina: **Projeto Integrador**
-Foco: Educação em Saúde Pública nas escolas do **Distrito Federal**
+Disciplina: **Projeto Integrador** — Foco: Educação em Saúde Pública nas escolas do **Distrito Federal**
+
+<br/>
+
+| Integrante | GitHub |
+| ---------- | ------ |
+| **Filipi Ramos** | [@Felps-26](https://github.com/Felps-26) |
+| **Thiago Vinicius Brito** | [@thivpb](https://github.com/thivpb) |
+| **Mateus Gomes** | [@matts006](https://github.com/matts006) |
 
 <br/>
 
@@ -391,9 +398,17 @@ _e da biblioteca [Raylib](https://www.raylib.com/)._
 
 ---
 
+<br/>
+
 ```
-[ O paciente está aguardando. O anticorpo está a postos. ]
-              Boa sorte, Doutor.
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║   [ O paciente está aguardando.                      ║
+║     O anticorpo está a postos. ]                     ║
+║                                                      ║
+║              Boa sorte, Doutor.                      ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
 ```
 
 </div>
